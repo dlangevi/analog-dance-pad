@@ -155,7 +155,7 @@ protected:
 
 private:
     GraphTab* myOwner;
-    // This is currently just a single sensor, but leaving as a vertor for now
+    // This is currently just a single sensor, but leaving as a vector for now
     // in case I want to make it toggleable
     vector<int> mySensorIndices;
     int myAdjustingSensorIndex = SENSOR_INDEX_NONE;
