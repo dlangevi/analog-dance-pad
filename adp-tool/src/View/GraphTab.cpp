@@ -137,7 +137,7 @@ public:
         auto rect = GetClientRect();
         if (rect.Contains(pos))
         {
-            int barIndex = (pos.x - rect.x) * mySensorIndices.size() / max(1, rect.width);
+            int barIndex = (pos.y - rect.y) * mySensorIndices.size() / max(1, rect.height);
             if (barIndex >= 0 && barIndex < (int)mySensorIndices.size())
                 myAdjustingSensorIndex = mySensorIndices[barIndex];
         }
