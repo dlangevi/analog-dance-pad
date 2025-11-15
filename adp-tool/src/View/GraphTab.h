@@ -24,17 +24,12 @@ public:
     void HandleChanges(DeviceChanges changes) override;
     void Tick() override;
 
-    double ReleaseThreshold() const;
-
-    void OnReleaseThresholdChanged(wxCommandEvent& event);
-
     wxWindow* GetWindow() override { return this; }
 
 private:
     void UpdateDisplays();
 
     vector<GraphDisplay*> myGraphDisplays;
-    wxSlider* myReleaseThresholdSlider;
     wxBoxSizer* mySensorSizer;
     double myReleaseThreshold = 1.0;
     bool myIsAdjustingReleaseThreshold = false;

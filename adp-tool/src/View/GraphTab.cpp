@@ -76,15 +76,6 @@ public:
             dc.SetBrush(Brushes::SensorBar());
             dc.DrawRectangle(0, y, size.x, graphHeight);
             
-            // Draw release threshold region
-            auto releaseThreshold = myOwner->ReleaseThreshold();
-            if (releaseThreshold < 1.0)
-            {
-                dc.SetBrush(Brushes::ReleaseMargin());
-                int releaseY = y + graphHeight - (releaseThreshold * threshold * graphHeight);
-                dc.DrawRectangle(0, thresholdY, size.x, std::max(1, releaseY - thresholdY));
-            }
-            
             // Draw threshold line
             dc.SetPen(wxPen(*wxGREEN, 2));
             dc.DrawLine(0, thresholdY, size.x, thresholdY);
@@ -264,45 +255,11 @@ void GraphTab::HandleChanges(DeviceChanges changes)
 
 void GraphTab::Tick()
 {
-    // Determine the current release threshold. While the user is dragging the slider, the slider value is visualized
-    // instead of the pad value. When the user releases the left mouse button, the slider value is applied to the pad.
-
-    if (myIsAdjustingReleaseThreshold)
-    {
-        myReleaseThreshold = myReleaseThresholdSlider->GetValue() * 0.01;
-        if (!wxGetMouseState().LeftIsDown())
-        {
-            Device::SetReleaseThreshold(myReleaseThreshold);
-            myIsAdjustingReleaseThreshold = false;
-        }
-    }
-    else
-    {
-        auto pad = Device::Pad();
-        auto threshold = pad ? pad->releaseThreshold : 1.0;
-        if (myReleaseThreshold != threshold)
-        {
-            myReleaseThreshold = threshold;
-            auto sliderValue = (int)lround(threshold * 100);
-            myReleaseThresholdSlider->SetValue(sliderValue);
-        }
-    }
-
     for (auto display : myGraphDisplays)
     {
         display->Tick();
         display->Refresh(false);
     }
-}
-
-double GraphTab::ReleaseThreshold() const
-{
-    return myReleaseThreshold;
-}
-
-void GraphTab::OnReleaseThresholdChanged(wxCommandEvent& event)
-{
-    myIsAdjustingReleaseThreshold = true;
 }
 
 void GraphTab::UpdateDisplays()
