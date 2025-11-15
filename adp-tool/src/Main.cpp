@@ -20,6 +20,7 @@ using json = nlohmann::json;
 #include "View/BaseTab.h"
 #include "View/IdleTab.h"
 #include "View/SensitivityTab.h"
+#include "View/GraphTab.h"
 #include "View/MappingTab.h"
 #include "View/LightsTab.h"
 #include "View/DeviceTab.h"
@@ -215,12 +216,13 @@ private:
         if (pad)
         {
             AddTab(0, new SensitivityTab(myTabs, pad), SensitivityTab::Title, true);
-            AddTab(1, new MappingTab(myTabs, pad), MappingTab::Title);
-            AddTab(2, new DeviceTab(myTabs), DeviceTab::Title);
+            AddTab(1, new GraphTab(myTabs, pad), GraphTab::Title, true);
+            AddTab(2, new MappingTab(myTabs, pad), MappingTab::Title);
+            AddTab(3, new DeviceTab(myTabs), DeviceTab::Title);
             auto lights = Device::Lights();
             if (pad->featureLights && lights)
             {
-                AddTab(3, new LightsTab(myTabs, lights), LightsTab::Title);
+                AddTab(4, new LightsTab(myTabs, lights), LightsTab::Title);
             }
         }
         else
