@@ -26,7 +26,7 @@ public:
     {
         SetMinSize(wxSize(10, 50)); 
         myUpdateTimer.Bind(wxEVT_TIMER, &GraphDisplay::OnTimer, this);
-        myUpdateTimer.Start(16); // ~60 FPS, adjust as needed
+        myUpdateTimer.Start(1000 / SensorHistory::SAMPLE_RATE); // ~240 samples per second, adjust as needed
         
     }
 
@@ -51,6 +51,10 @@ public:
     {
         wxBufferedPaintDC dc(this);
         auto size = GetClientSize();
+
+        // Add right margin so lines don't draw at the edge
+        static constexpr int RIGHT_MARGIN = 10;
+        int drawWidth = size.x - RIGHT_MARGIN;
         
         // Ensure history is initialized
         if (mySensorHistory.size() != mySensorIndices.size()) {
@@ -86,8 +90,8 @@ public:
             {
                 dc.SetPen(wxPen(pressed ? *wxRED : *wxBLUE, 2));
                 
-                float xStep = size.x / (float)SensorHistory::MAX_SAMPLES;
-                int startIdx = 0;
+                float xStep = drawWidth / (float)SensorHistory::MAX_SAMPLES;
+                int startIdx = SensorHistory::MAX_SAMPLES - history.values.size();
                 
                 for (size_t j = 1; j < history.values.size(); ++j)
                 {
@@ -108,38 +112,6 @@ public:
                     
                     dc.DrawLine(x1, value1Y, x2, value2Y);
                 }
-                
-                // Optional: Fill area under the curve
-                if (history.values.size() > 0)
-                {
-                    dc.SetBrush(wxBrush(pressed ? wxColour(255, 0, 0, 50) : wxColour(0, 0, 255, 50)));
-                    dc.SetPen(*wxTRANSPARENT_PEN);
-                    
-                    wxPoint* points = new wxPoint[history.values.size() + 2];
-                    
-                    for (size_t j = 0; j < history.values.size(); ++j)
-                    {
-                        int x = (startIdx + j) * xStep;
-                        int valueY = y + graphHeight - (history.values[j] * graphHeight);
-                        points[j] = wxPoint(x, valueY);
-                    }
-                    
-                    // Close the polygon at the bottom
-                    points[history.values.size()] = wxPoint((startIdx + history.values.size() - 1) * xStep, y + graphHeight);
-                    points[history.values.size() + 1] = wxPoint(0, y + graphHeight);
-                    
-                    dc.DrawPolygon(history.values.size() + 2, points);
-                    delete[] points;
-                }
-            }
-            
-            // Draw current value indicator on the right edge
-            if (sensor)
-            {
-                int currentY = y + graphHeight - (sensor->value * graphHeight);
-                dc.SetBrush(pressed ? Brushes::SensorOn() : Brushes::SensorOff());
-                dc.SetPen(Pens::Black1px());
-                dc.DrawCircle(size.x - 10, currentY, 5);
             }
             
             // Draw sensitivity text
@@ -153,7 +125,7 @@ public:
             // Draw separator line between graphs
             if (i < mySensorIndices.size() - 1)
             {
-                dc.SetPen(wxPen(*wxBLACK, 1));
+                dc.SetPen(wxPen(*wxWHITE, 1));
                 dc.DrawLine(0, y + graphHeight, size.x, y + graphHeight);
             }
         }
@@ -171,13 +143,10 @@ public:
         }
     }
 
-    void SetTarget(int button, const vector<int>& sensorIndices)
+    void SetTarget(const vector<int>& sensorIndices)
     {
-        myButton = button;
         mySensorIndices = sensorIndices;
     }
-
-    int button() const { return myButton; }
 
     DECLARE_EVENT_TABLE()
 
@@ -186,14 +155,16 @@ protected:
 
 private:
     GraphTab* myOwner;
-    int myButton = 0;
+    // This is currently just a single sensor, but leaving as a vertor for now
+    // in case I want to make it toggleable
     vector<int> mySensorIndices;
     int myAdjustingSensorIndex = SENSOR_INDEX_NONE;
     double myAdjustingSensorThreshold = 0.0;
 
     struct SensorHistory {
         std::deque<float> values;
-        static constexpr size_t MAX_SAMPLES = 200; // Adjust based on desired time window
+        static constexpr size_t SAMPLE_RATE = 120; // Samples per second
+        static constexpr size_t MAX_SAMPLES = 3 * SAMPLE_RATE; // 3 seconds of data 
         
         void AddValue(float value) {
             values.push_back(value);
@@ -283,16 +254,15 @@ void GraphTab::UpdateDisplays()
         myGraphDisplays.clear();
         for (auto mapping : mapping)
         {
-            auto display = new GraphDisplay(this);
-            myGraphDisplays.push_back(display);
-            mySensorSizer->Add(display, 1, wxALL | wxEXPAND, 4);
+            for (auto sensorIndex : mapping.second) {
+                auto display = new GraphDisplay(this);
+                display->SetTarget(vector<int>{sensorIndex});
+                myGraphDisplays.push_back(display);
+                mySensorSizer->Add(display, 1, wxLEFT | wxRIGHT | wxEXPAND, 4);
+            }
         }
         mySensorSizer->Layout();
     }
-    
-    int index = 0;
-    for (auto mapping : mapping)
-        myGraphDisplays[index++]->SetTarget(mapping.first, mapping.second);
 }
 
 }; // namespace adp.
