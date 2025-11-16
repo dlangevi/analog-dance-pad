@@ -79,6 +79,7 @@ public:
                 threshold = myAdjustingSensorThreshold;
             
             int thresholdY = y + graphHeight - (threshold * graphHeight);
+            int normalizer = thresholdY - ((y + graphHeight) / 2);
             
             // Background
             dc.SetPen(wxPen(myOwner->myBackgroundColor, 1));
@@ -88,7 +89,7 @@ public:
             auto myColor = myOwner->graphColors[myColorIndex];
             // Draw threshold line
             dc.SetPen(wxPen(myColor, 2));
-            dc.DrawLine(0, thresholdY, size.x, thresholdY);
+            dc.DrawLine(0, thresholdY - normalizer, size.x, thresholdY - normalizer);
             
             // Draw the graph line
             auto& history = mySensorHistory[i];
@@ -116,7 +117,7 @@ public:
                     int value1Y = y + graphHeight - (history.values[j - 1] * graphHeight);
                     int value2Y = y + graphHeight - (history.values[j] * graphHeight);
                     
-                    dc.DrawLine(x1, value1Y, x2, value2Y);
+                    dc.DrawLine(x1, value1Y - normalizer, x2, value2Y - normalizer);
                 }
             }
             
