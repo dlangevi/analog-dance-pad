@@ -100,6 +100,10 @@ public:
                 float xStep = drawWidth / (float)SensorHistory::MAX_SAMPLES;
                 int startIdx = SensorHistory::MAX_SAMPLES - history.values.size();
                 
+                // Clamp minimum Y value so the graph line never disappears off the bottom
+                int minY = y; // top of this sensor's graph area
+                int maxY = y + graphHeight; // bottom of this sensor's graph area
+                
                 for (size_t j = 1; j < history.values.size(); ++j)
                 {
                     int x1 = (startIdx + j - 1) * xStep;
@@ -116,8 +120,20 @@ public:
                     
                     int value1Y = y + graphHeight - (history.values[j - 1] * graphHeight);
                     int value2Y = y + graphHeight - (history.values[j] * graphHeight);
+
+                    // Normalize based on threshold
+                    value1Y = value1Y - normalizer;
+                    value2Y = value2Y - normalizer;
+
+                    // Clamp Y values so they don't go below the graph area
+                    value1Y = std::min(value1Y, maxY);
+                    value2Y = std::min(value2Y, maxY);
+
+                    // Clamp Y values so they don't go above the graph area
+                    value1Y = std::max(value1Y, minY);
+                    value2Y = std::max(value2Y, minY);
                     
-                    dc.DrawLine(x1, value1Y - normalizer, x2, value2Y - normalizer);
+                    dc.DrawLine(x1, value1Y, x2, value2Y);
                 }
             }
             
