@@ -7,9 +7,15 @@ pkgs.mkShell {
     # Add other dependencies your project needs
     udev
     xorg.libX11
+
+    gsettings-desktop-schemas
+    glib
+    gtk3
   ];
   
   shellHook = ''
     export CMAKE_PREFIX_PATH="${pkgs.wxGTK32}:$CMAKE_PREFIX_PATH"
+    export XDG_DATA_DIRS="$GSETTINGS_SCHEMAS_PATH:$XDG_DATA_DIRS"
+    cd build
   '';
 }

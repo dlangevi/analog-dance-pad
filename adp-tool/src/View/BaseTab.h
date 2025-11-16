@@ -1,6 +1,7 @@
 #pragma once
 
 #include "wx/window.h"
+#include "wx/toolbar.h"
 
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
@@ -17,6 +18,8 @@ public:
     virtual wxWindow* GetWindow() = 0;
 
     virtual void HandleChanges(DeviceChanges changes) {}
+
+    virtual void PopulateToolbar(wxToolBarBase* toolBar) {}
 
     virtual void Tick() {}
 };
