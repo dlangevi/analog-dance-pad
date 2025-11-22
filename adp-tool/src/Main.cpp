@@ -235,7 +235,7 @@ void AdpApplication::RenderIdleTab()
 	auto ws = ImGui::GetWindowSize();
 	auto ts = ImGui::CalcTextSize(text);
 	ImGui::SetCursorPos(ImVec2(ws.x/2 - ts.x/2, ws.y/2 - ts.y/2));
-	ImGui::Text(text);
+	ImGui::TextUnformatted(text);
 }
 
 void AdpApplication::RenderAboutTab()
@@ -257,7 +257,7 @@ void AdpApplication::RenderAboutTab()
 	{
 		auto ts = ImGui::CalcTextSize(lines[i]);
 		ImGui::SetCursorPosX(ws.x / 2 - ts.x / 2);
-		ImGui::Text(lines[i]);
+		ImGui::TextUnformatted(lines[i]);
 	}
 }
 

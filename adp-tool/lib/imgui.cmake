@@ -1,7 +1,7 @@
 cmake_minimum_required (VERSION 3.6)
 
 # GLFW
-set(GLFW_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/GLFW")
+set(GLFW_DIR "${CMAKE_CURRENT_SOURCE_DIR}/lib/glfw")
 
 option(GLFW_BUILD_EXAMPLES "Build the GLFW example programs" OFF)
 option(GLFW_BUILD_TESTS "Build the GLFW test programs" OFF)

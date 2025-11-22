@@ -80,7 +80,7 @@ void SensitivityTab::RenderSensor(int sensorIndex, float colX, float colY, float
     auto thresholdStr = fmt::format("{}%%", (int)std::lround(threshold * 100.0));
     auto ts = ImGui::CalcTextSize(thresholdStr.data());
     ImGui::SetCursorPos({ colX + (colW - ts.x) / 2, colY + 10 });
-    ImGui::Text(thresholdStr.data());
+    ImGui::TextUnformatted(thresholdStr.data());
 
     // Start/finish sensor threshold adjusting based on LMB click/release.
     if (myAdjustingSensorIndex == SENSOR_INDEX_NONE)
