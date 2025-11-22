@@ -24,8 +24,12 @@ public:
     void HandleChanges(DeviceChanges changes) override;
     void Tick() override;
 
+    void PopulateToolbar(wxToolBarBase* toolBar) override;
+
     wxWindow* GetWindow() override { return this; }
 
+    wxColour myBackgroundColor = wxColour(30, 30, 30);
+    vector<wxColour> graphColors = {}; 
 private:
     void UpdateDisplays();
 
@@ -33,6 +37,7 @@ private:
     wxBoxSizer* mySensorSizer;
     double myReleaseThreshold = 1.0;
     bool myIsAdjustingReleaseThreshold = false;
+
 };
 
 }; // namespace adp.

@@ -4,10 +4,17 @@
 #include <wx/memory.h>
 
 #include "wx/dcbuffer.h"
+#include "wx/panel.h"
 #include "wx/stattext.h"
+#include "wx/colordlg.h"
 #include "wx/timer.h"
+#include "wx/clrpicker.h"
 
 #include "Assets/Assets.h"
+
+#include  "Model/Device.h"
+#include "Model/ColorSetting.h"
+#include "Model/SettingsManager.h"
 
 #include "View/GraphTab.h"
 
@@ -52,9 +59,7 @@ public:
         wxBufferedPaintDC dc(this);
         auto size = GetClientSize();
 
-        // Add right margin so lines don't draw at the edge
-        static constexpr int RIGHT_MARGIN = 10;
-        int drawWidth = size.x - RIGHT_MARGIN;
+        int drawWidth = size.x;
         
         // Ensure history is initialized
         if (mySensorHistory.size() != mySensorIndices.size()) {
@@ -74,24 +79,30 @@ public:
                 threshold = myAdjustingSensorThreshold;
             
             int thresholdY = y + graphHeight - (threshold * graphHeight);
+            int normalizer = thresholdY - ((y + graphHeight) / 2);
             
             // Background
-            dc.SetPen(Pens::Black1px());
-            dc.SetBrush(Brushes::SensorBar());
+            dc.SetPen(wxPen(myOwner->myBackgroundColor, 1));
+            dc.SetBrush(wxBrush(myOwner->myBackgroundColor, wxBRUSHSTYLE_SOLID));
             dc.DrawRectangle(0, y, size.x, graphHeight);
             
+            auto myColor = myOwner->graphColors[myColorIndex];
             // Draw threshold line
-            dc.SetPen(wxPen(*wxGREEN, 2));
-            dc.DrawLine(0, thresholdY, size.x, thresholdY);
+            dc.SetPen(wxPen(myColor, 2));
+            dc.DrawLine(0, thresholdY - normalizer, size.x, thresholdY - normalizer);
             
             // Draw the graph line
             auto& history = mySensorHistory[i];
             if (history.values.size() > 1)
             {
-                dc.SetPen(wxPen(pressed ? *wxRED : *wxBLUE, 2));
+                dc.SetPen(wxPen(pressed ? *wxGREEN: myColor, 2));
                 
                 float xStep = drawWidth / (float)SensorHistory::MAX_SAMPLES;
                 int startIdx = SensorHistory::MAX_SAMPLES - history.values.size();
+                
+                // Clamp minimum Y value so the graph line never disappears off the bottom
+                int minY = y; // top of this sensor's graph area
+                int maxY = y + graphHeight; // bottom of this sensor's graph area
                 
                 for (size_t j = 1; j < history.values.size(); ++j)
                 {
@@ -100,27 +111,31 @@ public:
 
                     if (history.values[j - 1] > threshold)
                     {
-                      dc.SetPen(wxPen(*wxRED, 2));
+                      dc.SetPen(wxPen(*wxGREEN, 2));
                     }
                     else
                     {
-                      dc.SetPen(wxPen(*wxBLUE, 2));
+                      dc.SetPen(wxPen(myColor, 2));
                     }
                     
                     int value1Y = y + graphHeight - (history.values[j - 1] * graphHeight);
                     int value2Y = y + graphHeight - (history.values[j] * graphHeight);
+
+                    // Normalize based on threshold
+                    value1Y = value1Y - normalizer;
+                    value2Y = value2Y - normalizer;
+
+                    // Clamp Y values so they don't go below the graph area
+                    value1Y = std::min(value1Y, maxY);
+                    value2Y = std::min(value2Y, maxY);
+
+                    // Clamp Y values so they don't go above the graph area
+                    value1Y = std::max(value1Y, minY);
+                    value2Y = std::max(value2Y, minY);
                     
                     dc.DrawLine(x1, value1Y, x2, value2Y);
                 }
             }
-            
-            // Draw sensitivity text
-            auto sensitivityText = wxString::Format("%i%%", (int)std::lround(threshold * 100.0));
-            auto rect = wxRect(5, y + 5, 120, 20);
-            dc.SetBrush(Brushes::DarkGray());
-            dc.DrawRectangle(rect);
-            dc.SetTextForeground(*wxWHITE);
-            dc.DrawLabel(sensitivityText, rect, wxALIGN_CENTER);
             
             // Draw separator line between graphs
             if (i < mySensorIndices.size() - 1)
@@ -143,9 +158,10 @@ public:
         }
     }
 
-    void SetTarget(const vector<int>& sensorIndices)
+    void SetTarget(const vector<int>& sensorIndices, int colorIndex)
     {
         mySensorIndices = sensorIndices;
+        myColorIndex = colorIndex;
     }
 
     DECLARE_EVENT_TABLE()
@@ -158,6 +174,7 @@ private:
     // This is currently just a single sensor, but leaving as a vector for now
     // in case I want to make it toggleable
     vector<int> mySensorIndices;
+    int myColorIndex = 0;
     int myAdjustingSensorIndex = SENSOR_INDEX_NONE;
     double myAdjustingSensorThreshold = 0.0;
 
@@ -233,6 +250,19 @@ void GraphTab::Tick()
     }
 }
 
+void GraphTab::PopulateToolbar(wxToolBarBase* toolBar)
+{
+  auto colourPicker = CreateColorSetting(toolBar, L"Graph", L"Background", &myBackgroundColor);
+  auto count = 0;
+  for (auto graphColor : graphColors)
+  {
+    // Add Code Here
+    std::wstring colorName = L"GraphColor" + std::to_wstring(count);
+    CreateColorSetting(toolBar, L"Graph", colorName, &graphColors[count]);
+    count++;
+  }
+}
+
 void GraphTab::UpdateDisplays()
 {
     map<int, vector<int>> mapping; // button -> sensors[]
@@ -248,17 +278,30 @@ void GraphTab::UpdateDisplays()
         }
     }
 
+    myBackgroundColor = SettingsManager::Get().GetColor(
+        L"Graph/Background", 
+        wxColour(30, 30, 30)
+    );
+
     if (mapping.size() != myGraphDisplays.size())
     {
         mySensorSizer->Clear(true);
         myGraphDisplays.clear();
+        myGraphDisplays.clear();
+        auto count = 0;
         for (auto mapping : mapping)
         {
             for (auto sensorIndex : mapping.second) {
                 auto display = new GraphDisplay(this);
-                display->SetTarget(vector<int>{sensorIndex});
+                display->SetTarget(vector<int>{sensorIndex}, count);
                 myGraphDisplays.push_back(display);
                 mySensorSizer->Add(display, 1, wxLEFT | wxRIGHT | wxEXPAND, 4);
+                graphColors.push_back(
+                   SettingsManager::Get().GetColor(
+                     L"Graph/GraphColor" + std::to_wstring(count), 
+                     wxColour(30, 0, 0))
+                );
+                count++;
             }
         }
         mySensorSizer->Layout();

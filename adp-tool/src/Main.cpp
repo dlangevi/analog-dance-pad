@@ -7,13 +7,16 @@
 
 #include <nlohmann/json.hpp>
 using json = nlohmann::json;
-
+ 
+#include <wx/config.h> 
 #include "wx/setup.h"
 #include "wx/wx.h"
 #include "wx/notebook.h"
 #include "wx/wfstream.h"
 #include "wx/sstream.h"
 #include "wx/filename.h"
+#include "wx/toolbar.h"
+#include "wx/colordlg.h"
 
 #include "Assets/Assets.h"
 
@@ -29,12 +32,17 @@ using json = nlohmann::json;
 
 #include "Model/Log.h"
 #include "Model/Updater.h"
+#include "Model/SettingsManager.h"
 #include "View/UpdaterView.h"
 
 namespace adp {
 
 enum Ids { PROFILE_LOAD = 1, PROFILE_SAVE = 2, MENU_EXIT = 3};
 
+enum
+{
+  IDM_TOOLBAR_TOGGLE_TOOLBAR = 200,
+};
 
 // ====================================================================================================================
 // Main window.
@@ -58,6 +66,12 @@ public:
         fileMenu->Append(PROFILE_LOAD, wxT("Load profile"));
         fileMenu->Append(PROFILE_SAVE, wxT("Save profile"));
         fileMenu->Append(MENU_EXIT, wxT("Exit"));
+
+        wxMenu* toolBarMenu = new wxMenu();
+        menuBar->Append(toolBarMenu, wxT("Toolbar"));
+        toolBarMenu->AppendCheckItem(IDM_TOOLBAR_TOGGLE_TOOLBAR,
+                              "Toggle &toolbar\tCtrl-Z",
+                              "Show or hide the toolbar");
 
         SetMenuBar(menuBar);
 
@@ -200,6 +214,47 @@ public:
         event.Skip(); // Default handler will close window.
     }
 
+    void OnToggleToolbar(wxCommandEvent& WXUNUSED(event))
+    {
+        wxToolBar *tbar = GetToolBar();
+
+        if ( !tbar )
+        {
+            RecreateToolbar();
+        }
+        else
+        {
+            // notice that there is no need to call SetToolBar(nullptr) here (although
+            // this it is harmless to do and it must be called if you do not delete
+            // the toolbar but keep it for later reuse), just delete the toolbar
+            // directly and it will reset the associated frame toolbar pointer
+            delete tbar;
+        }
+    }
+
+    void RecreateToolbar()
+    {
+        // delete and recreate the toolbar
+        wxToolBarBase *toolBar = GetToolBar();
+        long style = toolBar ? toolBar->GetWindowStyle() : wxTB_FLAT | wxTB_DOCKABLE | wxTB_TEXT;
+
+        delete toolBar;
+
+        SetToolBar(nullptr);
+
+        style &= ~(wxTB_HORIZONTAL | wxTB_VERTICAL | wxTB_BOTTOM | wxTB_RIGHT | wxTB_HORZ_LAYOUT);
+        style |= wxTB_TOP | wxTB_HORZ_TEXT;
+
+        toolBar = CreateToolBar(style, wxID_HIGHEST);
+        auto activeTab = GetActiveTab();
+        if (activeTab)
+        {
+            activeTab->PopulateToolbar(toolBar);
+        }
+
+    }
+
+
     DECLARE_EVENT_TABLE()
 
 private:
@@ -285,7 +340,9 @@ BEGIN_EVENT_TABLE(MainWindow, wxFrame)
     EVT_MENU(MENU_EXIT, MainWindow::CloseApp)
     EVT_MENU(PROFILE_LOAD, MainWindow::ProfileLoad)
     EVT_MENU(PROFILE_SAVE, MainWindow::ProfileSave)
+    EVT_MENU(IDM_TOOLBAR_TOGGLE_TOOLBAR, MainWindow::OnToggleToolbar)
 END_EVENT_TABLE()
+
 
 // ====================================================================================================================
 // Application.
@@ -330,6 +387,9 @@ bool Application::OnInit()
     auto now = wxDateTime::Now().FormatISOCombined(' ');
     Log::Writef(L"Application started: %ls - %ls", versionString.data(), now.wc_str());
 
+    wxConfig * config = new wxConfig(TOOL_NAME);
+    wxConfigBase::Set(config);
+
     //Updater::Init();
     Assets::Init();
     Device::Init();
@@ -349,6 +409,7 @@ bool Application::OnInit()
 
     myWindow = new MainWindow(this, versionString.data());
     myWindow->SetIcons(icons);
+    SettingsManager::Get().RestoreWindowGeometry(myWindow);
     myWindow->Show();
 
     /*
@@ -368,11 +429,13 @@ void Application::Restart()
 
 int Application::OnExit()
 {
+    SettingsManager::Get().SaveWindowGeometry(myWindow);
     //Updater::Shutdown();
     Device::Shutdown();
     Assets::Shutdown();
     Log::Shutdown();
-
+ 
+    delete wxConfigBase::Set(nullptr);
     return wxApp::OnExit();
 }
 
