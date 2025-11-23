@@ -1,3 +1,4 @@
+#include "imgui.h"
 #include <Adp.h>
 
 #define _HAS_STD_BYTE 0
@@ -172,11 +173,6 @@ static void RenderTab(const function<void()>& render, const char* name)
 
 void AdpApplication::RenderCallback()
 {
-	/*
-	ImGui::ShowDemoWindow();
-	return;
-	//*/
-
 	auto now = Clock::now();
 	if (now - myLastUpdateTime > 10ms)
 	{
@@ -184,79 +180,90 @@ void AdpApplication::RenderCallback()
 		myLastUpdateTime = now;
 	}
 
-	float statusH = ImGui::GetStyle().ItemSpacing.y + ImGui::GetFrameHeightWithSpacing();
-	ImGui::BeginChild("StatusRegion", ImVec2(0, -statusH), false, ImGuiWindowFlags_None);
-	ImGui::BeginTabBar("MainTabs", ImGuiTabBarFlags_NoCloseWithMiddleMouseButton);
-	
-	auto pad = Device::Pad();
-	if (pad)
-	{
-		RenderTab(bind(&SensitivityTab::Render, &mySensitivityTab), "Sensitivity");
-		RenderTab(bind(&MappingTab::Render, &myMappingTab), "Mapping");
-		RenderTab(bind(&DeviceTab::Render, &myDeviceTab), "Device");
-		RenderTab(bind(&LightsTab::Render, &myLightsTab), "Lights");
-	}
-	else
-	{
-		RenderTab(bind(&AdpApplication::RenderIdleTab, this), "Idle");
-	}
-	RenderTab(bind(&AdpApplication::RenderAboutTab, this), "About");
-	RenderTab(bind(&AdpApplication::RenderLogTab, this), "Log");
+	// Pre calculate footer height and available space for tabs.
+	float footerHeight = ImGui::GetFrameHeight();
+	float avaliable = ImGui::GetContentRegionAvail().y - footerHeight;
 
-	ImGui::EndTabBar();
+	// Not sure why I need the -5 here, but without it a vertical scrollbar appears.
+	ImGui::BeginChild("TabRegion", ImVec2(0, avaliable - 5), false);
+	{
+		ImGui::BeginTabBar("MainTabs", ImGuiTabBarFlags_NoCloseWithMiddleMouseButton);
+
+		auto pad = Device::Pad();
+		if (pad)
+		{
+			RenderTab(bind(&SensitivityTab::Render, &mySensitivityTab), "Sensitivity");
+			RenderTab(bind(&MappingTab::Render, &myMappingTab), "Mapping");
+			RenderTab(bind(&DeviceTab::Render, &myDeviceTab), "Device");
+			RenderTab(bind(&LightsTab::Render, &myLightsTab), "Lights");
+		}
+		else
+		{
+			RenderTab(bind(&AdpApplication::RenderIdleTab, this), "Idle");
+		}
+		RenderTab(bind(&AdpApplication::RenderAboutTab, this), "About");
+		RenderTab(bind(&AdpApplication::RenderLogTab, this), "Log");
+
+		ImGui::EndTabBar();
+	}
 	ImGui::EndChild();
 
-	if (pad)
+	ImGui::BeginChild("Footer", ImVec2(0, footerHeight), false, ImGuiWindowFlags_None);
 	{
-		auto wp = ImGui::GetWindowPos();
-		auto ws = ImGui::GetWindowSize();
-		auto wdl = ImGui::GetWindowDrawList();
-		wdl->AddRectFilled(
-			{ wp.x, wp.y + ws.y - statusH },
-			{ wp.x + ws.x, wp.y + ws.y },
-			ImGui::GetColorU32(ImGuiCol_FrameBg, 0.25f));
-		ImGui::SetCursorPos({ 6, ws.y - statusH + 6 });
-		ImGui::Text("Connected to: %s", pad->name.data());
-
-		auto rate = Device::PollingRate();
-		if (rate > 0)
+		auto pad = Device::Pad();
+		if (pad)
 		{
-			string str = fmt::format("{}Hz", rate);
-			auto ts = ImGui::CalcTextSize(str.data());
-			ImGui::SetCursorPos({ ws.x - ts.x - 6, ws.y - statusH + 6 });
-			ImGui::TextUnformatted(str.data());
+			auto cp = ImGui::GetCursorPos();
+			auto csa = ImGui::GetContentRegionAvail();
+			auto wdl = ImGui::GetWindowDrawList();
+			wdl->AddRectFilled(
+				{ cp.x, cp.y },
+				{ cp.x + csa.x, cp.y + csa.y },
+				ImGui::GetColorU32(ImGuiCol_FrameBg, 0.25f));
+			ImGui::SetCursorPos({ cp.x + 6, cp.y });
+			ImGui::Text("Connected to: %s", pad->name.data());
+
+			auto rate = Device::PollingRate();
+			if (rate > 0)
+			{
+				string str = fmt::format("{}Hz", rate);
+				auto ts = ImGui::CalcTextSize(str.data());
+				ImGui::SetCursorPos({ csa.x - ts.x - 6, cp.y});
+				ImGui::TextUnformatted(str.data());
+			}
 		}
 	}
+	ImGui::EndChild();
 };
 
 void AdpApplication::RenderIdleTab()
 {
 	const char* text = "Connect an ADP enabled device to continue.";
-	auto ws = ImGui::GetWindowSize();
+	auto cra = ImGui::GetContentRegionAvail();
 	auto ts = ImGui::CalcTextSize(text);
-	ImGui::SetCursorPos(ImVec2(ws.x/2 - ts.x/2, ws.y/2 - ts.y/2));
+	ImGui::SetCursorPos(ImVec2(cra.x/2 - ts.x/2, cra.y/2 - ts.y/2));
 	ImGui::TextUnformatted(text);
 }
 
 void AdpApplication::RenderAboutTab()
 {
-	auto ws = ImGui::GetWindowSize();
+	auto cra = ImGui::GetContentRegionAvail();
 	const char* lines[] =
 	{
 		"ADP Tool " ADP_VERSION_STR,
 		"(c) Bram van de Wetering 2022",
 		"(c) DDR-EXP",
 	};
-	ImGui::SetCursorPosY(round(ws.y / 2 - 80));
-	ImGui::SetCursorPosX(round(ws.x / 2 - 32));
+	ImGui::SetCursorPosY(round(cra.y / 2 - 80));
+	ImGui::SetCursorPosX(round(cra.x / 2 - 32));
 	auto ico = m_Icon64.get();
 	auto size = ImVec2(float(ico->GetWidth()), float(ico->GetHeight()));
 	ImGui::Image(ico->GetDescriptorSet(), size);
-	ImGui::SetCursorPosY(round(ws.y / 2));
+	ImGui::SetCursorPosY(round(cra.y / 2));
 	for (int i = 0; i < std::size(lines); ++i)
 	{
 		auto ts = ImGui::CalcTextSize(lines[i]);
-		ImGui::SetCursorPosX(ws.x / 2 - ts.x / 2);
+		ImGui::SetCursorPosX(cra.x / 2 - ts.x / 2);
 		ImGui::TextUnformatted(lines[i]);
 	}
 }
