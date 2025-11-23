@@ -17,11 +17,12 @@ static string ButtonIndexToText(int index)
 static void RenderSensorBar(int sensorIndex)
 {
     auto sensorBarId = fmt::format("##SensorMappingBar{}", sensorIndex);
+
     ImGui::BeginChild(sensorBarId.data(), ImVec2(200, ImGui::GetFrameHeight()));
 
-    auto wdl = ImGui::GetWindowDrawList();
     auto wp = ImGui::GetWindowPos();
     auto ws = ImGui::GetWindowSize();
+    auto wdl = ImGui::GetWindowDrawList();
 
     auto sensor = Device::Sensor(sensorIndex);
     auto fillW = sensor ? float(sensor->value) * ws.x : 0.f;
