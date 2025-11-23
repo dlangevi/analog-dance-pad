@@ -20,20 +20,20 @@ static void RenderSensorBar(int sensorIndex)
     ImGui::BeginChild(sensorBarId.data(), ImVec2(200, ImGui::GetFrameHeight()));
 
     auto wdl = ImGui::GetWindowDrawList();
-    auto cp = ImGui::GetCursorScreenPos();
-    auto cra = ImGui::GetContentRegionAvail();
+    auto wp = ImGui::GetWindowPos();
+    auto ws = ImGui::GetWindowSize();
 
     auto sensor = Device::Sensor(sensorIndex);
-    auto fillW = sensor ? float(sensor->value) * cra.x : 0.f;
+    auto fillW = sensor ? float(sensor->value) * ws.x : 0.f;
 
     wdl->AddRectFilled(
-        { cp.x, cp.y },
-        { cp.x + cra.x, cp.y + cra.y },
+        { wp.x, wp.y },
+        { wp.x + ws.x, wp.y + ws.y },
         RgbColorf::SensorBar.ToU32());
 
     wdl->AddRectFilled(
-        { cp.x, cp.y },
-        { cp.x + fillW, cp.y + cra.y },
+        { wp.x, wp.y },
+        { wp.x + fillW, wp.y + ws.y },
         RgbColorf::SensorOff.ToU32());
 
     ImGui::EndChild();
@@ -50,9 +50,6 @@ void MappingTab::Render()
 
     for (int i = 0; i < pad->numSensors; ++i)
     {
-        ImGui::BeginChild(
-            fmt::format("SensorMappingChild{}", i).data(), 
-            ImVec2(0, ImGui::GetFrameHeight()));
         auto sensorText = fmt::format("Sensor {}", i);
         int selected = Device::Sensor(i)->button;
         ImGui::TextUnformatted(sensorText.data());
@@ -66,7 +63,6 @@ void MappingTab::Render()
 
         ImGui::SameLine();
         RenderSensorBar(i);
-        ImGui::EndChild();
 
         if (configButton)
         {

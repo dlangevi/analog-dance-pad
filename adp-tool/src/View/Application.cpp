@@ -642,7 +642,11 @@ void Application::Run()
 				ImGui::EndMenuBar();
 			}
 
-			RenderCallback();
+			ImGui::BeginChild("ContentRegion");
+			{
+				RenderCallback();
+			}
+			ImGui::EndChild();
 
 			ImGui::End();
 		}

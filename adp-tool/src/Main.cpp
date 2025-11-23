@@ -239,31 +239,31 @@ void AdpApplication::RenderCallback()
 void AdpApplication::RenderIdleTab()
 {
 	const char* text = "Connect an ADP enabled device to continue.";
-	auto cra = ImGui::GetContentRegionAvail();
+	auto ws = ImGui::GetWindowSize();
 	auto ts = ImGui::CalcTextSize(text);
-	ImGui::SetCursorPos(ImVec2(cra.x/2 - ts.x/2, cra.y/2 - ts.y/2));
+	ImGui::SetCursorPos(ImVec2(ws.x/2 - ts.x/2, ws.y/2 - ts.y/2));
 	ImGui::TextUnformatted(text);
 }
 
 void AdpApplication::RenderAboutTab()
 {
-	auto cra = ImGui::GetContentRegionAvail();
+	auto ws = ImGui::GetWindowSize();
 	const char* lines[] =
 	{
 		"ADP Tool " ADP_VERSION_STR,
 		"(c) Bram van de Wetering 2022",
 		"(c) DDR-EXP",
 	};
-	ImGui::SetCursorPosY(round(cra.y / 2 - 80));
-	ImGui::SetCursorPosX(round(cra.x / 2 - 32));
+	ImGui::SetCursorPosY(round(ws.y / 2 - 80));
+	ImGui::SetCursorPosX(round(ws.x / 2 - 32));
 	auto ico = m_Icon64.get();
 	auto size = ImVec2(float(ico->GetWidth()), float(ico->GetHeight()));
 	ImGui::Image(ico->GetDescriptorSet(), size);
-	ImGui::SetCursorPosY(round(cra.y / 2));
+	ImGui::SetCursorPosY(round(ws.y / 2));
 	for (int i = 0; i < std::size(lines); ++i)
 	{
 		auto ts = ImGui::CalcTextSize(lines[i]);
-		ImGui::SetCursorPosX(cra.x / 2 - ts.x / 2);
+		ImGui::SetCursorPosX(ws.x / 2 - ts.x / 2);
 		ImGui::TextUnformatted(lines[i]);
 	}
 }

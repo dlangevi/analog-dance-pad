@@ -29,14 +29,14 @@ SensitivityTab::SensitivityTab()
 
 void SensitivityTab::RenderSensor(int sensorIndex)
 {
-    auto csp = ImGui::GetCursorScreenPos();
-    auto size = ImGui::GetWindowSize();
+    auto wp = ImGui::GetWindowPos();
+    auto ws = ImGui::GetWindowSize();
     auto wdl = ImGui::GetWindowDrawList();
 
     // mouse is down on this item
     if (ImGui::IsItemActive()) {
         float mouseY = ImGui::GetIO().MousePos.y;
-        float t = (mouseY - csp.y) / size.y;
+        float t = (mouseY - wp.y) / ws.y;
         myAdjustingSensorIndex = sensorIndex;
         myAdjustingSensorThreshold = clamp(1.0f - t, 0.0f, 1.0f);
     }
@@ -56,45 +56,45 @@ void SensitivityTab::RenderSensor(int sensorIndex)
         pressed = sensor->value >= threshold;
     }
 
-    auto fillH = sensor ? float(sensor->value) * size.y : 0.f;
-    float thresholdY = float(1 - threshold) * size.y;
+    auto fillH = sensor ? float(sensor->value) * ws.y : 0.f;
+    float thresholdY = float(1 - threshold) * ws.y;
 
     // Full bar.
     wdl->AddRectFilled(
-        { csp.x, csp.y },
-        { csp.x + size.x, csp.y + size.y },
+        { wp.x, wp.y },
+        { wp.x + ws.x, wp.y + ws.y },
         RgbColorf::SensorBar.ToU32());
 
     // Filled bar that indicates current sensor reading.
     wdl->AddRectFilled(
-        { csp.x, csp.y + size.y - fillH },
-        { csp.x + size.x, csp.y + size.y },
+        { wp.x, wp.y + ws.y - fillH },
+        { wp.x + ws.x, wp.y + ws.y },
         pressed ? RgbColorf::SensorOn.ToU32() : RgbColorf::SensorOff.ToU32());
 
     // Line representing where the release threshold would be for the current sensor.
     if (myReleaseThreshold < 1.0)
     {
-        float releaseY = float(1 - myReleaseThreshold * threshold) * size.y;
+        float releaseY = float(1 - myReleaseThreshold * threshold) * ws.y;
         wdl->AddRectFilled(
-            { csp.x , csp.y + thresholdY },
-            { csp.x + size.x, csp.y + thresholdY + max(1.f, releaseY - thresholdY) },
+            { wp.x , wp.y + thresholdY },
+            { wp.x + ws.x, wp.y + thresholdY + max(1.f, releaseY - thresholdY) },
             IM_COL32(50, 50, 50, 100));
     }
 
     // Line representing the sensitivity threshold.
     wdl->AddRectFilled(
-        { csp.x , csp.y + thresholdY - 2 },
-        { csp.x + size.x, csp.y + thresholdY + 1 },
+        { wp.x , wp.y + thresholdY - 2 },
+        { wp.x + ws.x, wp.y + thresholdY + 1 },
         IM_COL32_BLACK);
     wdl->AddRectFilled(
-        { csp.x , csp.y + thresholdY - 1 },
-        { csp.x + size.x, csp.y + thresholdY },
+        { wp.x , wp.y + thresholdY - 1 },
+        { wp.x + ws.x, wp.y + thresholdY },
         IM_COL32_WHITE);
 
     // Small text block at the top displaying sensitivity threshold.
     auto thresholdStr = fmt::format("{}%", (int)std::lround(threshold * 100.0));
     auto ts = ImGui::CalcTextSize(thresholdStr.data());
-    ImGui::SetCursorPosX((size.x - ts.x) / 2);
+    ImGui::SetCursorPosX((ws.x - ts.x) / 2);
     ImGui::TextUnformatted(thresholdStr.data());
 }
 
