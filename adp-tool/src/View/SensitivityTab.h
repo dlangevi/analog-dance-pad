@@ -12,8 +12,8 @@ public:
 
 private:
     void RenderSensor(int);
-    // -1.0 for unset
-    float myReleaseThreshold = -1.0f;
+
+    float myReleaseThreshold = -1.f;
     int myAdjustingSensorIndex;
     double myAdjustingSensorThreshold;
 };
