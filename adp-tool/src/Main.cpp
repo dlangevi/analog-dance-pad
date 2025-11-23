@@ -181,11 +181,11 @@ void AdpApplication::RenderCallback()
 	}
 
 	// Pre calculate footer height and available space for tabs.
-	float footerHeight = ImGui::GetFrameHeight();
+	float footerHeight = ImGui::GetFrameHeightWithSpacing();
 	float avaliable = ImGui::GetContentRegionAvail().y - footerHeight;
 
-	// Not sure why I need the -5 here, but without it a vertical scrollbar appears.
-	ImGui::BeginChild("TabRegion", ImVec2(0, avaliable - 5), false);
+	// Include item spacing into available space for tabs.
+	ImGui::BeginChild("TabRegion", ImVec2(0, avaliable - ImGui::GetStyle().ItemSpacing.y), false);
 	{
 		ImGui::BeginTabBar("MainTabs", ImGuiTabBarFlags_NoCloseWithMiddleMouseButton);
 
@@ -214,7 +214,7 @@ void AdpApplication::RenderCallback()
 		if (pad)
 		{
 			auto cp = ImGui::GetCursorPos();
-			auto csa = ImGui::GetContentRegionAvail();
+			auto csa = ImGui::GetWindowSize();
 			auto wdl = ImGui::GetWindowDrawList();
 			wdl->AddRectFilled(
 				{ cp.x, cp.y },
