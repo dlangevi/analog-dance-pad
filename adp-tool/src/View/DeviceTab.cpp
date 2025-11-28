@@ -7,6 +7,7 @@
 #include "wx/generic/textdlgg.h"
 #include "wx/filedlg.h"
 #include "wx/msgdlg.h"
+#include "wx/choice.h"
 
 #include "Model/Device.h"
 #include "Model/Firmware.h"
@@ -33,13 +34,33 @@ static constexpr const wchar_t* UpdateFirmwareMsg =
 
 const wchar_t* DeviceTab::Title = L"Device";
 
-enum Ids { RENAME_BUTTON = 1, FACTORY_RESET_BUTTON = 2, REBOOT_BUTTON = 3, FIRMWARE_BUTTON = 4, FIRMWARE_CANCEL_BUTTON = 5};
+enum Ids { 
+  DEVICE_SELECTION = 1, 
+  RENAME_BUTTON = 2, 
+  FACTORY_RESET_BUTTON = 3, 
+  REBOOT_BUTTON = 4, 
+  FIRMWARE_BUTTON = 5, 
+  FIRMWARE_CANCEL_BUTTON = 6
+};
 
 DeviceTab::DeviceTab(wxWindow* owner)
     : wxWindow(owner, wxID_ANY)
 {
     auto sizer = new wxBoxSizer(wxVERTICAL);
     sizer->AddStretchSpacer();
+
+    // Device selection
+    auto lDevice = new wxStaticText(this, wxID_ANY, L"Select active device:",
+        wxDefaultPosition, wxDefaultSize, wxALIGN_CENTRE_HORIZONTAL);
+    sizer->Add(lDevice, 0, wxALIGN_CENTER_HORIZONTAL, 0);
+    
+    deviceChoice = new wxChoice(this, DEVICE_SELECTION, wxDefaultPosition, wxSize(300, -1));
+    sizer->Add(deviceChoice, 0, wxALIGN_CENTER_HORIZONTAL | wxTOP, 5);
+    
+    // Populate device list
+    PopulateDeviceList();
+
+    sizer->AddSpacer(20);
 
     auto lRename = new wxStaticText(this, wxID_ANY, RenameMsg,
         wxDefaultPosition, wxDefaultSize, wxALIGN_CENTRE_HORIZONTAL);
@@ -69,6 +90,47 @@ DeviceTab::DeviceTab(wxWindow* owner)
     SetSizer(sizer);
 
     firmwareDialog = new FirmwareDialog("Firmware updater");
+}
+
+void DeviceTab::PopulateDeviceList()
+{
+    deviceChoice->Clear();
+    
+    auto devices = Device::ListPads();
+    
+    if (devices.empty()) {
+        deviceChoice->Append(L"No devices found");
+        deviceChoice->SetSelection(0);
+        deviceChoice->Enable(false);
+        return;
+    }
+    
+    deviceChoice->Enable(true);
+    
+    for (size_t i = 0; i < devices.size(); ++i) {
+        // Adjust this based on the actual structure returned by Device::ListDevices
+        wxString deviceName = wxString::FromUTF8(devices[i]);
+        deviceChoice->Append(deviceName, new wxStringClientData(wxString::Format("%zu", devices[i])));
+    }
+    
+    deviceChoice->SetSelection(0);
+    if (!devices.empty()) {
+        wxCommandEvent evt(DEVICE_SELECTION);
+        OnDeviceSelection(evt); // Select first device by default
+    }
+}
+
+void DeviceTab::OnDeviceSelection(wxCommandEvent& event)
+{
+    int selection = deviceChoice->GetSelection();
+    if (selection == wxNOT_FOUND)
+        return;
+        
+    wxStringClientData* clientData = static_cast<wxStringClientData*>(deviceChoice->GetClientObject(selection));
+    if (clientData) {
+        auto deviceId = clientData->GetData();
+        Device::SelectPad(deviceId.ToStdString());
+    }
 }
 
 void DeviceTab::OnRename(wxCommandEvent& event)
@@ -110,6 +172,7 @@ void DeviceTab::OnUploadFirmware(wxCommandEvent& event)
 }
 
 BEGIN_EVENT_TABLE(DeviceTab, wxWindow)
+    EVT_CHOICE(DEVICE_SELECTION, DeviceTab::OnDeviceSelection)
     EVT_BUTTON(RENAME_BUTTON, DeviceTab::OnRename)
     EVT_BUTTON(FACTORY_RESET_BUTTON, DeviceTab::OnFactoryReset)
     EVT_BUTTON(REBOOT_BUTTON, DeviceTab::OnReboot)

@@ -9,7 +9,7 @@ include(lib/git.cmake)
 add_subdirectory (lib/avrdude)
 include(lib/hidapi.cmake)
 include(lib/serial.cmake)
-include(lib/wxWidgets.cmake)
+include(lib/wxwidgets.cmake)
 
 file(GLOB_RECURSE sources
      "src/*.h"

@@ -119,6 +119,8 @@ struct LightsState
 
 class Device
 {
+
+
 public:
 	static void Init();
 
@@ -129,6 +131,10 @@ public:
 	static int PollingRate();
 
 	static const PadState* Pad();
+
+	static const void SelectPad(string identifier);
+
+	static const std::vector<string> ListPads();
 
 	static const LightsState* Lights();
 

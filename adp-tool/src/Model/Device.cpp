@@ -697,15 +697,23 @@ public:
 
 		for (auto device = foundDevices; device; device = device->next)
 		{
-			if (myFailedDevices.count(device->path) == 0 && ConnectToDeviceStage1(device))
-				break;
+      PadDevice* activeDevice;
+			if (myFailedDevices.count(device->path) == 0)
+      {
+        activeDevice = ConnectToDeviceStage1(device);
+        if (activeDevice != nullptr)
+        {
+          mySuccessDevices[device->path] = activeDevice;
+          myConnectedDevice.reset(activeDevice);
+        }
+      }
 		}
 
 		hid_free_enumeration(foundDevices);
 		return (bool)myConnectedDevice;
 	}
 
-	bool ConnectToDeviceStage1(hid_device_info* deviceInfo)
+	PadDevice* ConnectToDeviceStage1(hid_device_info* deviceInfo)
 	{
 		// Check if the vendor and product are compatible.
 
@@ -721,7 +729,7 @@ public:
 		}
 
 		if (!compatible)
-			return false;
+			return nullptr;
 
 		using namespace std::chrono_literals;
 		// Wait for any udev rules to run
@@ -735,31 +743,31 @@ public:
 			Log::Writef(L"ConnectionManager :: hid_open failed (%ls) :: %hs", hid_error(nullptr), deviceInfo->path);
 
 			AddIncompatibleDevice(deviceInfo);
-			return false;
+			return nullptr;
 		}
 		if (hid_set_nonblocking(hid, 1) < 0)
 		{
 			Log::Write(L"ConnectionManager :: hid_set_nonblocking failed");
 			AddIncompatibleDevice(deviceInfo);
 			hid_close(hid);
-			return false;
+			return nullptr;
 		}
 
 		// Try to read the pad configuration and name.
 		// If both succeeded, we'll assume the device is valid.
 
 		auto reporter = make_unique<Reporter>(hid);
-		bool result = ConnectToDeviceStage2(reporter, deviceInfo);
+		auto result = ConnectToDeviceStage2(reporter, deviceInfo);
 		if(!result) {
 			AddIncompatibleDevice(deviceInfo);
 			// hid_close already happend becuase Reporter gets destructed
-			return false;
+			return nullptr;
 		}
 
 		return result;
 	}
 
-	bool ConnectToDeviceStage2(unique_ptr<Reporter>& reporter, hid_device_info* deviceInfo)
+	PadDevice* ConnectToDeviceStage2(unique_ptr<Reporter>& reporter, hid_device_info* deviceInfo)
 	{
 		NameReport name;
 		IdentificationReport padIdentification;
@@ -768,7 +776,7 @@ public:
 
 		if (!reporter->Get(name))
 		{
-			return false;
+			return nullptr; // false;
 		}
 
 		VersionType padVersion = versionTypeUnknown;
@@ -907,8 +915,8 @@ public:
 		}
 		Log::Write(L"]");
 
-		myConnectedDevice.reset(device);
-		return true;
+		return device; // myConnectedDevice.reset(device);
+		// return true;
 	}
 
 	void DisconnectFailedDevice()
@@ -927,7 +935,7 @@ public:
 			myFailedDevices[device->path] = narrow(device->product_string, wcslen(device->product_string));
 	}
 
-private:
+  map<DevicePath, PadDevice*> mySuccessDevices;
 	unique_ptr<PadDevice> myConnectedDevice;
 	map<DevicePath, DeviceName> myFailedDevices;
 	bool emulator = false;
@@ -989,6 +997,24 @@ int Device::PollingRate()
 {
 	auto device = connectionManager->ConnectedDevice();
 	return device ? device->PollingRate() : 0;
+}
+
+const void Device::SelectPad(string identifier)
+{
+  auto pad = connectionManager->mySuccessDevices[identifier];
+  if (pad) 
+  {
+    connectionManager->myConnectedDevice.reset(pad);
+  }
+}
+
+const std::vector<string> Device::ListPads()
+{
+  std::vector<std::string> keys;
+    for (const auto& pair : connectionManager->mySuccessDevices) {
+        keys.push_back(pair.first);
+    }
+    return keys;
 }
 
 const PadState* Device::Pad()

@@ -4,6 +4,7 @@
 #include "wx/sizer.h"
 #include "wx/stattext.h"
 #include "wx/gauge.h"
+#include "wx/choice.h"
 
 #include "View/BaseTab.h"
 
@@ -40,14 +41,20 @@ public:
 
     DeviceTab(wxWindow* owner);
 
+    void OnPadSelected(wxCommandEvent &event);
     void OnRename(wxCommandEvent& event);
     void OnReboot(wxCommandEvent& event);
     void OnFactoryReset(wxCommandEvent& event);
     void OnUploadFirmware(wxCommandEvent& event);
+    void PopulateDeviceList();
+    void OnDeviceSelection(wxCommandEvent& event);
 
     wxWindow* GetWindow() override { return this; }
 
     DECLARE_EVENT_TABLE()
+
+private:
+    wxChoice* deviceChoice;
 };
 
 }; // namespace adp.
