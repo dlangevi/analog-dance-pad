@@ -21,6 +21,9 @@ struct RgbColorf
 	static RgbColorf SensorOn;
 	static RgbColorf SensorOff;
 	static RgbColorf SensorBar;
+  static RgbColorf GraphActive;
+
+  static vector<RgbColorf> GraphColors;
 };
 
 }; // namespace adp.
