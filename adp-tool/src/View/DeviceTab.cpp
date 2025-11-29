@@ -44,49 +44,82 @@ static void OnUploadFirmware()
     */
 }
 
-static void OnRename()
-{
-    /*
-    auto pad = Device::Pad();
-    if (pad == nullptr)
-        return;
-
-    wxTextEntryDialog dlg(this, L"Enter a new name for the device", L"Enter name", pad->name.data());
-
-    wxTextValidator validator = wxTextValidator(wxFILTER_INCLUDE_CHAR_LIST);
-    validator.SetCharIncludes("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ-_ ()");
-    dlg.SetTextValidator(validator);
-
-    dlg.SetMaxLength(pad->maxNameLength);
-    if (dlg.ShowModal() == wxID_OK)
-        Device::SetDeviceName(dlg.GetValue());
-    */
-}
-
 void DeviceTab::Render()
 {
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(10, 10));
 
     ImGui::TextUnformatted(SelectMsg);
 
-    auto devicePaths = Device::GetConnectedPadDevicePaths();
+    auto devices = Device::GetConnectedPads();
     string buttonOptions = "";
     int selected = 0;
-    for (const auto& devicePath : devicePaths)
+    for (int i = 0; i < devices.size(); i++) 
     {
+        auto& [deviceName, devicePath] = devices[i];
         if (devicePath == Device::PadPath())
-            selected = int(&devicePath - &devicePaths[0]);
-        buttonOptions.append(fmt::format("{}{}", devicePath, '\0'));
+            selected = i;
+        buttonOptions.append(fmt::format("{}{}", deviceName, '\0'));
     }
 
     if (ImGui::Combo("Pad Selection", &selected, buttonOptions.data()))
     {
-        Device::SetActivePad(devicePaths[selected]);
+        auto& [deviceName, devicePath] = devices[selected];
+        Device::SetActivePad(devicePath);
     }
 
+    static bool show_modal = false;
     ImGui::TextUnformatted(RenameMsg);
     if (ImGui::Button("Rename...", { 200, 30 }))
-        OnRename();
+    {
+      ImGui::OpenPopup("RenameDevice");
+      show_modal = true;
+    }
+
+    // ImGui version of device renaming dialog
+    if (ImGui::BeginPopupModal(
+          "RenameDevice", 
+          &show_modal, 
+          ImGuiWindowFlags_AlwaysAutoResize)) {
+
+        auto pad = Device::Pad();
+        if (pad == nullptr)
+            return;
+
+        // Enought for max name + 1 for null terminator
+        static char nameBuffer[MAX_NAME_LENGTH + 1]; 
+
+        static bool initialized = false;
+        if (!initialized) {
+            strncpy(nameBuffer, pad->name.c_str(), sizeof(nameBuffer) - 1);
+            nameBuffer[sizeof(nameBuffer) - 1] = '\0';
+            initialized = true;
+        }
+
+        ImGui::Text("Enter a new name for the device:");
+        ImGui::InputText("##DeviceName", nameBuffer, sizeof(nameBuffer), ImGuiInputTextFlags_CallbackCharFilter,
+            [](ImGuiInputTextCallbackData* data) {
+                // Allow only a-z, A-Z, -, _, (, ), and space
+                char c = data->EventChar;
+
+                bool isLetter = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+                bool isAllowedSymbol = c == '-' || c == '_' || c == '(' || c == ')' || c == ' ';
+                if (isLetter || isAllowedSymbol) {
+                    return 0;
+                }
+                return 1;
+            });
+        if (ImGui::Button("OK")) {
+            Device::SetDeviceName(nameBuffer);
+            initialized = false;
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel")) {
+            initialized = false;
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::EndPopup();
+    }
 
     ImGui::SetCursorPosY(ImGui::GetCursorPosY() + 20);
     ImGui::TextUnformatted(FactoryResetMsg);

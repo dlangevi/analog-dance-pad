@@ -707,12 +707,12 @@ public:
 		return myConnectedDevices.find(activeDevicePath)->second.get();
 	}
 
-	std::vector<DevicePath> GetConnectedDevicePaths() const
+	std::vector<pair<string, string>> GetConnectedPads() const
 	{
-		std::vector<DevicePath> result;
+		std::vector<pair<string, string>> result;
 		for (const auto& [devicePath, device] : myConnectedDevices)
 		{
-			result.push_back(devicePath);
+			result.push_back(pair(device->State().name, devicePath));
 		}
 		return result;
 	}
@@ -1095,9 +1095,9 @@ const string Device::PadPath()
 	return device ? std::string(device->Path()) : nullptr;
 }
 
-const vector<string> Device::GetConnectedPadDevicePaths()
+const vector<pair<string, string>> Device::GetConnectedPads()
 {
-	return connectionManager->GetConnectedDevicePaths();
+	return connectionManager->GetConnectedPads();
 }
 
 bool Device::SetActivePad(string devicePath)

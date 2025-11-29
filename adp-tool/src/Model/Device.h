@@ -113,9 +113,9 @@ public:
 
 	static const string PadPath();
 
-	static const vector<string> GetConnectedPadDevicePaths();
+	static const vector<pair<string, string>> GetConnectedPads();
 
-	static bool SetActivePad(string devicePath);
+	static bool SetActivePad(string padName);
 
 	static const LightsState* Lights();
 
