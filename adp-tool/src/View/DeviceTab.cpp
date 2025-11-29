@@ -3,6 +3,7 @@
 #include <string>
 
 #include <imgui.h>
+#include <fmt/core.h>
 
 #include <Model/Device.h>
 #include <Model/Firmware.h>
@@ -14,6 +15,9 @@
 using namespace std;
 
 namespace adp {
+
+static constexpr const char* SelectMsg =
+    "Select the active pad device from the dropdown.";
 
 static constexpr const char* RenameMsg =
     "Rename the pad device. Convenient if you have\nmultiple devices and want to tell them apart.";
@@ -62,6 +66,23 @@ static void OnRename()
 void DeviceTab::Render()
 {
     ImGui::PushStyleVar(ImGuiStyleVar_ItemSpacing, ImVec2(10, 10));
+
+    ImGui::TextUnformatted(SelectMsg);
+
+    auto devicePaths = Device::GetConnectedPadDevicePaths();
+    string buttonOptions = "";
+    int selected = 0;
+    for (const auto& devicePath : devicePaths)
+    {
+        if (devicePath == Device::PadPath())
+            selected = int(&devicePath - &devicePaths[0]);
+        buttonOptions.append(fmt::format("{}{}", devicePath, '\0'));
+    }
+
+    if (ImGui::Combo("Pad Selection", &selected, buttonOptions.data()))
+    {
+        Device::SetActivePad(devicePaths[selected]);
+    }
 
     ImGui::TextUnformatted(RenameMsg);
     if (ImGui::Button("Rename...", { 200, 30 }))

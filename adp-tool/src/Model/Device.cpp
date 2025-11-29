@@ -232,7 +232,7 @@ public:
 		const vector<LightRuleReport>& lightRules,
 		const vector<LedMappingReport>& ledMappings,
 		const vector<SensorReport>& sensors)
-		: myReporter(move(reporter))
+		: myReporter(std::move(reporter))
 		, myPath(path)
 	{
 		UpdateName(name);
@@ -689,17 +689,51 @@ class ConnectionManager
 public:
 	~ConnectionManager()
 	{
-		if (myConnectedDevice)
-			myConnectedDevice->SaveChanges();
+		if (myConnectedDevices.size() > 0)
+		{
+			for (auto& [devicePath, device] : myConnectedDevices)
+			{
+				device->SaveChanges();
+			}
+		}
 	}
 
-	PadDevice* ConnectedDevice() const { return myConnectedDevice.get(); }
+	PadDevice* ActiveConnectedDevice() const {
+		if (myConnectedDevices.size() == 0)
+		{
+			return nullptr;
+		}
 
-	bool DiscoverDevice()
+		return myConnectedDevices.find(activeDevicePath)->second.get();
+	}
+
+	std::vector<DevicePath> GetConnectedDevicePaths() const
+	{
+		std::vector<DevicePath> result;
+		for (const auto& [devicePath, device] : myConnectedDevices)
+		{
+			result.push_back(devicePath);
+		}
+		return result;
+	}
+
+	bool SetActiveDevice(DevicePath devicePath)
+	{
+		if (myConnectedDevices.count(devicePath) == 0)
+			return false;
+
+		activeDevicePath = devicePath;
+		return true;
+	}
+
+	bool DiscoverDevices()
 	{
 		if(emulator) {
 			auto reporter = make_unique<Reporter>();
-			return ConnectToDeviceStage2(reporter, NULL);
+			auto device = ConnectToDeviceStage2(reporter, NULL);
+			activeDevicePath = "emulator";
+			myConnectedDevices[activeDevicePath] = std::move(device);
+			return true;
 		}
 
 		auto foundDevices = hid_enumerate(0x0, 0x0);
@@ -718,19 +752,41 @@ public:
 			else ++it;
 		}
 
+		using namespace std::chrono_literals;
+		// Wait for any udev rules to run
+		std::this_thread::sleep_for(200ms);
+
 		// Try to connect to the first compatible device that is not on the failed device list.
 
 		for (auto device = foundDevices; device; device = device->next)
 		{
-			if (myFailedDevices.count(device->path) == 0 && ConnectToDeviceStage1(device))
-				break;
+			if (myFailedDevices.count(device->path) != 0)
+				continue;
+
+			// For some reason we get the same device multiple times, so skip if
+			// already connected
+			if (myConnectedDevices.count(device->path) != 0)
+				continue;
+
+			auto padDevice = ConnectToDeviceStage1(device);
+
+			if (padDevice == nullptr)
+				continue;
+
+			myConnectedDevices[device->path] = std::move(padDevice);
+
+			// If this is the first device detected, set it as active
+			if (activeDevicePath == "")
+			{
+				activeDevicePath = device->path;
+			}
 		}
 
 		hid_free_enumeration(foundDevices);
-		return (bool)myConnectedDevice;
+		return myConnectedDevices.size() > 0;
 	}
 
-	bool ConnectToDeviceStage1(hid_device_info* deviceInfo)
+	unique_ptr<PadDevice> ConnectToDeviceStage1(hid_device_info* deviceInfo)
 	{
 		// Check if the vendor and product are compatible.
 
@@ -746,11 +802,7 @@ public:
 		}
 
 		if (!compatible)
-			return false;
-
-		using namespace std::chrono_literals;
-		// Wait for any udev rules to run
-		std::this_thread::sleep_for(200ms);
+			return nullptr;
 
 		// Open and configure HID for communicating with the pad.
 
@@ -760,31 +812,31 @@ public:
 			Log::Writef("ConnectionManager :: hid_open failed (%ls) :: %s", hid_error(nullptr), deviceInfo->path);
 
 			AddIncompatibleDevice(deviceInfo);
-			return false;
+			return nullptr;
 		}
 		if (hid_set_nonblocking(hid, 1) < 0)
 		{
 			Log::Write("ConnectionManager :: hid_set_nonblocking failed");
 			AddIncompatibleDevice(deviceInfo);
 			hid_close(hid);
-			return false;
+			return nullptr;
 		}
 
 		// Try to read the pad configuration and name.
 		// If both succeeded, we'll assume the device is valid.
 
 		auto reporter = make_unique<Reporter>(hid);
-		bool result = ConnectToDeviceStage2(reporter, deviceInfo);
-		if(!result) {
+		auto device = ConnectToDeviceStage2(reporter, deviceInfo);
+		if(!device) {
 			AddIncompatibleDevice(deviceInfo);
 			// hid_close already happend becuase Reporter gets destructed
-			return false;
+			return nullptr;
 		}
 
-		return result;
+		return device;
 	}
 
-	bool ConnectToDeviceStage2(unique_ptr<Reporter>& reporter, hid_device_info* deviceInfo)
+	unique_ptr<PadDevice> ConnectToDeviceStage2(unique_ptr<Reporter>& reporter, hid_device_info* deviceInfo)
 	{
 		NameReport name;
 		IdentificationReport padIdentification;
@@ -793,7 +845,7 @@ public:
 
 		if (!reporter->Get(name))
 		{
-			return false;
+			return nullptr;
 		}
 
 		VersionType padVersion = versionTypeUnknown;
@@ -910,7 +962,7 @@ public:
 			}
 		}
 
-		auto device = new PadDevice(
+		auto device = make_unique<PadDevice>(
 			reporter,
 			devicePath.c_str(),
 			name,
@@ -934,17 +986,29 @@ public:
 		}
 		Log::Write("]");
 
-		myConnectedDevice.reset(device);
-		return true;
+		return device;
 	}
 
-	void DisconnectFailedDevice()
+	void DisconnectFailedDevice(PadDevice* device)
 	{
-		auto device = myConnectedDevice.get();
 		if (device)
 		{
 			myFailedDevices[device->Path()] = device->State().name;
-			myConnectedDevice.reset();
+			myConnectedDevices.erase(device->Path());
+
+			// If this was the active device, reset the activeDevicePath to the first
+			// available device, or empty if none are connected.
+			if (device->Path() == activeDevicePath) 
+			{
+				if (myConnectedDevices.size() != 0)
+				{
+					activeDevicePath = myConnectedDevices.begin()->first;
+				}
+				else
+				{
+					activeDevicePath = "";
+				}
+			}
 		}
 	}
 
@@ -955,7 +1019,8 @@ public:
 	}
 
 private:
-	unique_ptr<PadDevice> myConnectedDevice;
+	DevicePath activeDevicePath;
+	std::map<DevicePath, unique_ptr<PadDevice>> myConnectedDevices;
 	map<DevicePath, DeviceName> myFailedDevices;
 	bool emulator = false;
 };
@@ -989,13 +1054,13 @@ DeviceChanges Device::Update()
 	DeviceChanges changes = 0;
 
 	// If there is currently no connected device, try to find one.
-	auto device = connectionManager->ConnectedDevice();
+	auto device = connectionManager->ActiveConnectedDevice();
 	if (!device && searching)
 	{
-		if (connectionManager->DiscoverDevice())
+		if (connectionManager->DiscoverDevices())
 			changes |= DCF_DEVICE;
 
-		device = connectionManager->ConnectedDevice();
+		device = connectionManager->ActiveConnectedDevice();
 	}
 
 	// If there is a device, update it.
@@ -1004,7 +1069,7 @@ DeviceChanges Device::Update()
 		changes |= device->PopChanges();
 		if (!device->UpdateSensorValues())
 		{
-			connectionManager->DisconnectFailedDevice();
+			connectionManager->DisconnectFailedDevice(device);
 			changes |= DCF_DEVICE;
 		}
 	}
@@ -1014,109 +1079,125 @@ DeviceChanges Device::Update()
 
 int Device::PollingRate()
 {
-	auto device = connectionManager->ConnectedDevice();
+	auto device = connectionManager->ActiveConnectedDevice();
 	return device ? device->PollingRate() : 0;
 }
 
 const PadState* Device::Pad()
 {
-	auto device = connectionManager->ConnectedDevice();
+	auto device = connectionManager->ActiveConnectedDevice();
 	return device ? &device->State() : nullptr;
+}
+
+const string Device::PadPath()
+{
+	auto device = connectionManager->ActiveConnectedDevice();
+	return device ? std::string(device->Path()) : nullptr;
+}
+
+const vector<string> Device::GetConnectedPadDevicePaths()
+{
+	return connectionManager->GetConnectedDevicePaths();
+}
+
+bool Device::SetActivePad(string devicePath)
+{
+	return connectionManager->SetActiveDevice(devicePath);
 }
 
 const LightsState* Device::Lights()
 {
-	auto device = connectionManager->ConnectedDevice();
+	auto device = connectionManager->ActiveConnectedDevice();
 	return device ? &device->Lights() : nullptr;
 }
 
 const SensorState* Device::Sensor(int sensorIndex)
 {
-	auto device = connectionManager->ConnectedDevice();
+	auto device = connectionManager->ActiveConnectedDevice();
 	return device ? device->Sensor(sensorIndex) : nullptr;
 }
 
 wstring Device::ReadDebug()
 {
-	auto device = connectionManager->ConnectedDevice();
+	auto device = connectionManager->ActiveConnectedDevice();
 	return device ? device->ReadDebug() : L"";
 }
 
 const bool Device::HasUnsavedChanges()
 {
-	auto device = connectionManager->ConnectedDevice();
+	auto device = connectionManager->ActiveConnectedDevice();
 	return device ? device->HasUnsavedChanges() : false;
 }
 
 bool Device::SetThreshold(int sensorIndex, double threshold)
 {
-	auto device = connectionManager->ConnectedDevice();
+	auto device = connectionManager->ActiveConnectedDevice();
 	return device ? device->SetThreshold(sensorIndex, threshold) : false;
 }
 
 bool Device::SetReleaseThreshold(double threshold)
 {
-	auto device = connectionManager->ConnectedDevice();
+	auto device = connectionManager->ActiveConnectedDevice();
 	return device ? device->SetReleaseThreshold(threshold) : false;
 }
 
 bool Device::SetAdcConfig(int sensorIndex, int resistorValue)
 {
-	auto device = connectionManager->ConnectedDevice();
+	auto device = connectionManager->ActiveConnectedDevice();
 	return device ? device->SetAdcConfig(sensorIndex, resistorValue) : false;
 }
 
 bool Device::SetButtonMapping(int sensorIndex, int button)
 {
-	auto device = connectionManager->ConnectedDevice();
+	auto device = connectionManager->ActiveConnectedDevice();
 	return device ? device->SetButtonMapping(sensorIndex, button) : false;
 }
 
 bool Device::SetDeviceName(const char* name)
 {
-	auto device = connectionManager->ConnectedDevice();
+	auto device = connectionManager->ActiveConnectedDevice();
 	return device ? device->SendName(name) : false;
 }
 
 bool Device::SendLedMapping(int ledMappingIndex, LedMapping mapping)
 {
-	auto device = connectionManager->ConnectedDevice();
+	auto device = connectionManager->ActiveConnectedDevice();
 	return device ? device->SendLedMapping(ledMappingIndex, mapping) : false;
 }
 
 bool Device::DisableLedMapping(int ledMappingIndex)
 {
-	auto device = connectionManager->ConnectedDevice();
+	auto device = connectionManager->ActiveConnectedDevice();
 	return device ? device->DisableLedMapping(ledMappingIndex) : false;
 }
 
 bool Device::SendLightRule(int lightRuleIndex, LightRule rule)
 {
-	auto device = connectionManager->ConnectedDevice();
+	auto device = connectionManager->ActiveConnectedDevice();
 	return device ? device->SendLightRule(lightRuleIndex, rule) : false;
 }
 
 bool Device::DisableLightRule(int lightRuleIndex)
 {
-	auto device = connectionManager->ConnectedDevice();
+	auto device = connectionManager->ActiveConnectedDevice();
 	return device ? device->DisableLightRule(lightRuleIndex) : false;
 }
 
 void Device::SendDeviceReset()
 {
-	auto device = connectionManager->ConnectedDevice();
+	auto device = connectionManager->ActiveConnectedDevice();
 	if (device) device->Reset();
 }
 
 void Device::SendFactoryReset()
 {
-	auto device = connectionManager->ConnectedDevice();
+	auto device = connectionManager->ActiveConnectedDevice();
 	if (device) device->FactoryReset();
 }
 
 void Device::SaveChanges()
 {
-	auto device = connectionManager->ConnectedDevice();
+	auto device = connectionManager->ActiveConnectedDevice();
 	if (device) device->SaveChanges();
 }
 
@@ -1160,7 +1241,7 @@ void Device::LoadProfile(json& j, DeviceProfileGroups groups)
 			}
 		}
 
-		auto device = connectionManager->ConnectedDevice();
+		auto device = connectionManager->ActiveConnectedDevice();
 		if(device) {
             device->TriggerChange(DCF_LIGHTS);
 		}

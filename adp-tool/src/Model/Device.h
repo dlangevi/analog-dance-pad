@@ -111,6 +111,12 @@ public:
 
 	static const PadState* Pad();
 
+	static const string PadPath();
+
+	static const vector<string> GetConnectedPadDevicePaths();
+
+	static bool SetActivePad(string devicePath);
+
 	static const LightsState* Lights();
 
 	static const SensorState* Sensor(int sensorIndex);
