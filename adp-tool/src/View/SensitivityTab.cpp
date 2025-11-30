@@ -29,7 +29,6 @@ static ReleaseMode RELEASE_MODE;
 SensitivityTab::SensitivityTab()
     : myAdjustingSensorIndex(SENSOR_INDEX_NONE)
 {
-    adp::UserConfig::Init();
 }
 
 void SensitivityTab::OnDeviceChanged()

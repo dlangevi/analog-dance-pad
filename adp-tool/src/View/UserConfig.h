@@ -16,6 +16,9 @@ class UserConfig {
     static RgbColorf SensorOff;
     static RgbColorf SensorBar;
 
+    static int WindowWidth;
+    static int WindowHeight;
+
   private:
     static std::filesystem::path configDir;
     static std::filesystem::path configPath;
