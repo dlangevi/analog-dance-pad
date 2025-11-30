@@ -99,6 +99,7 @@ set(GUI_SOURCES
 	"src/View/LightsTab.cpp"
 	"src/View/MappingTab.cpp"
 	"src/View/SensitivityTab.cpp"
+	"src/View/GraphTab.cpp"
 	"src/View/UserConfig.cpp"
 
 	"src/Main.cpp"
@@ -132,7 +133,7 @@ if(MINGW)
 	target_link_options(${PROJECT_NAME} PRIVATE -static-libgcc -static-libstdc++)
 endif()
 set_target_properties(${PROJECT_NAME} PROPERTIES
-	CXX_STANDARD 20
+	CXX_STANDARD 23
 	CXX_EXTENSIONS OFF)
 target_link_libraries(${PROJECT_NAME} ${GUI_LIBS})
 target_compile_definitions(${PROJECT_NAME} PRIVATE DEVICE_CLIENT_ENABLED)
@@ -158,7 +159,7 @@ if(NOT EMSCRIPTEN)
 	add_executable ("adp-cli" ${CLI_SOURCES})
 	target_link_options("adp-cli" PRIVATE -static-libgcc -static-libstdc++)
 	set_target_properties("adp-cli" PROPERTIES
-		CXX_STANDARD 20
+		CXX_STANDARD 23
 		CXX_EXTENSIONS OFF)
 	target_link_libraries("adp-cli" ${GLOBAL_LIBS} argparse::argparse)
 	if(EMSCRIPTEN)
