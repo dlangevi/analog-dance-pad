@@ -35,7 +35,7 @@ SensitivityTab::SensitivityTab()
     
 }
 
-void SensitivityTab::RenderSensor(int sensorIndex, float colX, float colY, float colW, float colH)
+void SensitivityTab::RenderSensor(int sensorIndex)
 {
     auto wp = ImGui::GetWindowPos();
     auto ws = ImGui::GetWindowSize();
@@ -64,60 +64,59 @@ void SensitivityTab::RenderSensor(int sensorIndex, float colX, float colY, float
         }
     }
 
-    if(RELEASE_MODE == 0) {
+    if(RELEASE_MODE == RELEASE_NONE) {
         releaseThreshold = threshold;
     }
-    else if(RELEASE_MODE == 1) {
+    else if(RELEASE_MODE == RELEASE_GLOBAL) {
         releaseThreshold = threshold * GLOBAL_RELEASE_THRESHOLD;
     }
 
-    auto fillH = sensor ? float(sensor->value) * colH : 0.f;
-    float thresholdY = colY + float(1 - threshold) * colH;
+    auto fillH = sensor ? float(sensor->value) * ws.y : 0.f;
+    float thresholdY = float(1 - threshold) * ws.y;
 
     
-    ImGui::SetCursorPos({ colX, colY });
-    ImGui::BeginChild(fmt::format("Sensor{}", sensorIndex).data(), { colW, colH }, false, ImGuiWindowFlags_NoScrollbar);
+    ImGui::BeginChild(fmt::format("Sensor{}", sensorIndex).data(), { ws.x, ws.y }, false, ImGuiWindowFlags_NoScrollbar);
     ImGui::EndChild();
 
     bool sensorHighlighted = ImGui::IsItemHovered();
 
     // Full bar.
     wdl->AddRectFilled(
-        { wp.x + colX, wp.y + colY },
-        { wp.x + colX + colW, wp.y + colY + colH },
+        { wp.x, wp.y },
+        { wp.x + ws.x, wp.y + ws.y},
         RgbColorf::SensorBar.ToU32());
 
     // Filled bar that indicates current sensor reading.
     wdl->AddRectFilled(
-        { wp.x + colX, wp.y + colY + colH - fillH },
-        { wp.x + colX + colW, wp.y + colY + colH },
+        { wp.x , wp.y + ws.y - fillH },
+        { wp.x + ws.x, wp.y + ws.y },
         pressed ? RgbColorf::SensorOn.ToU32() : RgbColorf::SensorOff.ToU32());
 
     // Line representing where the release threshold would be for the current sensor.
     if (releaseThreshold < 1.0)
     {
-        float releaseY = colY + float(1 - releaseThreshold) * colH;
+        float releaseY = float(1 - releaseThreshold) * ws.y;
         wdl->AddRectFilled(
-            { wp.x + colX, wp.y + thresholdY },
-            { wp.x + colX + colW, wp.y + thresholdY + max(1.f, releaseY - thresholdY) },
+            { wp.x , wp.y + thresholdY },
+            { wp.x + ws.x, wp.y + thresholdY + max(1.f, releaseY - thresholdY) },
             IM_COL32(50, 50, 50, 100));
     }
 
     // Line representing the sensitivity threshold.
     wdl->AddRectFilled(
-        { wp.x + colX, wp.y + thresholdY - 2 },
-        { wp.x + colX + colW, wp.y + thresholdY + 1 },
+        { wp.x, wp.y + thresholdY - 2 },
+        { wp.x + ws.x, wp.y + thresholdY + 1 },
         IM_COL32_BLACK);
     wdl->AddRectFilled(
-        { wp.x + colX, wp.y + thresholdY - 1 },
-        { wp.x + colX + colW, wp.y + thresholdY },
+        { wp.x , wp.y + thresholdY - 1 },
+        { wp.x + ws.x, wp.y + thresholdY },
         IM_COL32_WHITE);
 
     // Small text block at the top displaying sensitivity threshold.
     auto thresholdStr = fmt::format("{}%%", (int)std::lround(threshold * 100.0));
     auto ts = ImGui::CalcTextSize(thresholdStr.data());
-    ImGui::SetCursorPos({ colX + (colW - ts.x) / 2, colY + 10 });
-    ImGui::Text(thresholdStr.data());
+    ImGui::SetCursorPos({ (ws.x - ts.x) / 2, 10 });
+    ImGui::TextUnformatted(thresholdStr.data());
 
     // Start/finish sensor threshold adjusting based on LMB click/release.
     if (myAdjustingSensorIndex == SENSOR_INDEX_NONE)
@@ -125,8 +124,8 @@ void SensitivityTab::RenderSensor(int sensorIndex, float colX, float colY, float
         if (sensorHighlighted && ImGui::IsMouseClicked(ImGuiPopupFlags_MouseButtonLeft) && ImGui::IsMousePosValid())
         {
             auto pos = ImGui::GetMousePos();
-            bool inBox = pos.x >= wp.x + colX && pos.x < wp.x + colX + colW &&
-                pos.y >= wp.y + colY && pos.y < wp.y + colY + colH;
+            bool inBox = pos.x >= wp.x && pos.x < wp.x + ws.x &&
+                pos.y >= wp.y && pos.y < wp.y + ws.y;
 
             if (inBox)
             {
@@ -142,8 +141,8 @@ void SensitivityTab::RenderSensor(int sensorIndex, float colX, float colY, float
         if (sensorHighlighted && ImGui::IsMouseClicked(ImGuiPopupFlags_MouseButtonRight) && ImGui::IsMousePosValid() && RELEASE_MODE == RELEASE_INDIVIDUAL)
         {
             auto pos = ImGui::GetMousePos();
-            bool inBox = pos.x >= wp.x + colX && pos.x < wp.x + colX + colW &&
-                pos.y >= wp.y + colY && pos.y < wp.y + colY + colH;
+            bool inBox = pos.x >= wp.x && pos.x < wp.x + ws.x &&
+                pos.y >= wp.y && pos.y < wp.y + ws.y;
 
             if (inBox)
             {
@@ -177,8 +176,8 @@ void SensitivityTab::RenderSensor(int sensorIndex, float colX, float colY, float
     // If sensor threshold adjusting is active, update threshold based on mouse position.
     if (myAdjustingSensorIndex != SENSOR_INDEX_NONE)
     {
-        double value = double(ImGui::GetMousePos().y) - (wp.y + colY);
-        double range = max(1.0, double(colH));
+        double value = double(ImGui::GetMousePos().y) - (wp.y);
+        double range = max(1.0, double(ws.y));
         myAdjustingSensorThreshold = clamp(1.0 - (value / range), 0.0, 1.0);
     }
 }
@@ -240,8 +239,6 @@ void SensitivityTab::Render()
         // }
     }
 
-    float colX = 10;
-    float colY = ImGui::GetCursorPosY() + 10;
     float colW = (ws.x - 10) / max(numMappedSensors, 1) - 10;
     float colH = ws.y - ImGui::GetCursorPosY() - 100;
 
@@ -249,8 +246,12 @@ void SensitivityTab::Render()
     {
         for (auto& sensor : button.second)
         {
-            RenderSensor(sensor, colX, colY, colW, colH);
-            colX += colW + 10;
+            ImGui::BeginChild(
+                fmt::format("SensorGroup{}", sensor).data(),
+                { colW, colH });
+            RenderSensor(sensor);
+            ImGui::EndChild();
+            ImGui::SameLine();
         }
     }
 

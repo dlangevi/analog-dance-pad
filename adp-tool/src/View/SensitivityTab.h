@@ -11,7 +11,7 @@ public:
     void Render();
 
 private:
-    void RenderSensor(int, float, float, float, float);
+    void RenderSensor(int);
     int myAdjustingSensorIndex;
     double myAdjustingSensorThreshold;
     double myAdjustingSensorReleaseOffset;
