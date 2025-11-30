@@ -8,6 +8,7 @@
 
 #include <Model/Device.h>
 #include <View/Colors.h>
+#include <View/UserConfig.h>
 #include <View/SensitivityTab.h>
 
 using namespace std;
@@ -32,6 +33,7 @@ static ReleaseMode RELEASE_MODE = ReleaseMode::RELEASE_NONE;
 SensitivityTab::SensitivityTab()
     : myAdjustingSensorIndex(SENSOR_INDEX_NONE)
 {
+    adp::UserConfig::Init();
     
 }
 
@@ -85,13 +87,13 @@ void SensitivityTab::RenderSensor(int sensorIndex, float colX, float colY, float
     wdl->AddRectFilled(
         { wp.x + colX, wp.y + colY },
         { wp.x + colX + colW, wp.y + colY + colH },
-        RgbColorf::SensorBar.ToU32());
+        UserConfig::SensorBar.ToU32());
 
     // Filled bar that indicates current sensor reading.
     wdl->AddRectFilled(
         { wp.x + colX, wp.y + colY + colH - fillH },
         { wp.x + colX + colW, wp.y + colY + colH },
-        pressed ? RgbColorf::SensorOn.ToU32() : RgbColorf::SensorOff.ToU32());
+        pressed ? UserConfig::SensorOn.ToU32() : UserConfig::SensorOff.ToU32());
 
     // Line representing where the release threshold would be for the current sensor.
     if (releaseThreshold < 1.0)
@@ -117,7 +119,7 @@ void SensitivityTab::RenderSensor(int sensorIndex, float colX, float colY, float
     auto thresholdStr = fmt::format("{}%%", (int)std::lround(threshold * 100.0));
     auto ts = ImGui::CalcTextSize(thresholdStr.data());
     ImGui::SetCursorPos({ colX + (colW - ts.x) / 2, colY + 10 });
-    ImGui::Text(thresholdStr.data());
+    ImGui::TextUnformatted(thresholdStr.data());
 
     // Start/finish sensor threshold adjusting based on LMB click/release.
     if (myAdjustingSensorIndex == SENSOR_INDEX_NONE)
@@ -190,11 +192,11 @@ void SensitivityTab::Render()
     int colorEditFlags = ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_NoLabel;
     ImGui::TextUnformatted(ActivationMsg);
     ImGui::SameLine();
-    ImGui::ColorEdit3("SensorBar", RgbColorf::SensorBar.rgb, colorEditFlags);
+    ImGui::ColorEdit3("SensorBar", UserConfig::SensorBar.rgb, colorEditFlags);
     ImGui::SameLine();
-    ImGui::ColorEdit3("SensorOn", RgbColorf::SensorOn.rgb, colorEditFlags);
+    ImGui::ColorEdit3("SensorOn", UserConfig::SensorOn.rgb, colorEditFlags);
     ImGui::SameLine();
-    ImGui::ColorEdit3("SensorOff", RgbColorf::SensorOff.rgb, colorEditFlags);
+    ImGui::ColorEdit3("SensorOff", UserConfig::SensorOff.rgb, colorEditFlags);
 
     if(RELEASE_MODE == RELEASE_INDIVIDUAL) {
         ImGui::TextUnformatted(ReleaseMsg);

@@ -18,6 +18,7 @@
 #include <View/LightsTab.h>
 #include <View/MappingTab.h>
 #include <View/SensitivityTab.h>
+#include <View/UserConfig.h>
 
 #ifndef __EMSCRIPTEN__
 	#include <nfd.h>
@@ -379,6 +380,7 @@ int Main(int argc, char** argv)
 	Log::Writef("Starting at: %s", datetime.data());
 
 	Device::Init();
+	UserConfig::Init();
 
 	#ifdef __EMSCRIPTEN__
   		emscripten_set_main_loop(loop, 0, 1);
@@ -386,6 +388,7 @@ int Main(int argc, char** argv)
 		app.Run();
 	#endif
 
+	UserConfig::SaveToDisk();
 	Device::Shutdown();
 	Log::Shutdown();
 
