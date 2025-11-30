@@ -29,6 +29,7 @@ add_subdirectory(lib)
 
 find_package(fmt REQUIRED)
 find_package(imgui REQUIRED)
+find_package(platform_folders REQUIRED)
 find_package(nlohmann_json REQUIRED)
 find_package(Stb REQUIRED)
 find_package(argparse REQUIRED)
@@ -98,6 +99,7 @@ set(GUI_SOURCES
 	"src/View/LightsTab.cpp"
 	"src/View/MappingTab.cpp"
 	"src/View/SensitivityTab.cpp"
+	"src/View/UserConfig.cpp"
 
 	"src/Main.cpp"
 )
@@ -108,6 +110,7 @@ set(GUI_SOURCES
 set(GUI_LIBS
 	${GLOBAL_LIBS}
 	imgui::imgui
+	sago::platform_folders
 )
 
 if(NOT EMSCRIPTEN)

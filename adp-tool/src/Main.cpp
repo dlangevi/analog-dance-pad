@@ -18,6 +18,7 @@
 #include <View/LightsTab.h>
 #include <View/MappingTab.h>
 #include <View/SensitivityTab.h>
+#include <View/UserConfig.h>
 
 #ifndef __EMSCRIPTEN__
 	#include <nfd.h>
@@ -68,7 +69,7 @@ private:
 };
 
 AdpApplication::AdpApplication()
-	: Walnut::Application(800, 800, TOOL_NAME)
+	: Walnut::Application(TOOL_NAME)
 {
 }
 
@@ -322,7 +323,7 @@ void AdpApplication::RenderIdleTab()
 	auto ws = ImGui::GetWindowSize();
 	auto ts = ImGui::CalcTextSize(text);
 	ImGui::SetCursorPos(ImVec2(ws.x/2 - ts.x/2, ws.y/2 - ts.y/2));
-	ImGui::Text(text);
+	ImGui::TextUnformatted(text);
 
 	#ifdef __EMSCRIPTEN__
 	if(ImGui::Button("Device select"))
@@ -351,7 +352,7 @@ void AdpApplication::RenderAboutTab()
 	{
 		auto ts = ImGui::CalcTextSize(lines[i]);
 		ImGui::SetCursorPosX(ws.x / 2 - ts.x / 2);
-		ImGui::Text(lines[i]);
+		ImGui::TextUnformatted(lines[i]);
 	}
 }
 
@@ -386,6 +387,7 @@ int Main(int argc, char** argv)
 		app.Run();
 	#endif
 
+	UserConfig::SaveToDisk();
 	Device::Shutdown();
 	Log::Shutdown();
 
