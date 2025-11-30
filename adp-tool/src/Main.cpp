@@ -69,7 +69,7 @@ private:
 };
 
 AdpApplication::AdpApplication()
-	: Walnut::Application(800, 800, TOOL_NAME)
+	: Walnut::Application(TOOL_NAME)
 {
 }
 
@@ -380,7 +380,6 @@ int Main(int argc, char** argv)
 	Log::Writef("Starting at: %s", datetime.data());
 
 	Device::Init();
-	UserConfig::Init();
 
 	#ifdef __EMSCRIPTEN__
   		emscripten_set_main_loop(loop, 0, 1);

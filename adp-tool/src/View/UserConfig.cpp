@@ -38,18 +38,25 @@ void WriteColor(nlohmann::json& j, const std::string& key, const RgbColorf& colo
 
 bool UserConfig::LoadFromDisk() {
 
-  nlohmann::json j;
-  if (std::filesystem::exists(configPath)) {
-    std::ifstream inputStream(configPath);
-    inputStream >> j;
-    inputStream.close();
-
-    UserConfig::SensorOn = ReadColor(j, "SensorOn", UserConfig::SensorOn);
-    UserConfig::SensorOff = ReadColor(j, "SensorOff", UserConfig::SensorOff);
-    UserConfig::SensorBar = ReadColor(j, "SensorBar", UserConfig::SensorBar);
+  if (!std::filesystem::exists(configPath)) {
+    return false;
   }
 
-  // Return if the Load succeeded
+  nlohmann::json j;
+  try {
+    std::ifstream inputStream(configPath);
+    inputStream >> j;
+  } catch (const std::exception& e) {
+    return false;
+  }
+
+  UserConfig::SensorOn = ReadColor(j, "SensorOn", UserConfig::SensorOn);
+  UserConfig::SensorOff = ReadColor(j, "SensorOff", UserConfig::SensorOff);
+  UserConfig::SensorBar = ReadColor(j, "SensorBar", UserConfig::SensorBar);
+
+  UserConfig::WindowWidth = j.value("WindowWidth", UserConfig::WindowWidth);
+  UserConfig::WindowHeight = j.value("WindowHeight", UserConfig::WindowHeight);
+
   return true;
 }
 
@@ -60,6 +67,9 @@ bool UserConfig::SaveToDisk() {
   WriteColor(j, "SensorOff", UserConfig::SensorOff);
   WriteColor(j, "SensorBar", UserConfig::SensorBar);
 
+  j["WindowWidth"] = UserConfig::WindowWidth;
+  j["WindowHeight"] = UserConfig::WindowHeight;
+
   // Open file
   std::ofstream outputStream(configPath);
   if (!outputStream) {
@@ -67,12 +77,14 @@ bool UserConfig::SaveToDisk() {
   }
 
   outputStream << j.dump(4);
-  outputStream.close();
   return true;
 }
 
 std::filesystem::path UserConfig::configDir = "";
 std::filesystem::path UserConfig::configPath = "";
+
+int UserConfig::WindowWidth = 800;
+int UserConfig::WindowHeight = 800;
 
 RgbColorf UserConfig::SensorOn = RgbColorf(0.98f, 0.902f, 0.745f);
 RgbColorf UserConfig::SensorOff = RgbColorf(0.902f, 0.627f, 0.392f);

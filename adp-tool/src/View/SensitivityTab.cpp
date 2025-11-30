@@ -33,8 +33,6 @@ static ReleaseMode RELEASE_MODE = ReleaseMode::RELEASE_NONE;
 SensitivityTab::SensitivityTab()
     : myAdjustingSensorIndex(SENSOR_INDEX_NONE)
 {
-    adp::UserConfig::Init();
-    
 }
 
 void SensitivityTab::RenderSensor(int sensorIndex, float colX, float colY, float colW, float colH)
