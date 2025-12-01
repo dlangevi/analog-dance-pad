@@ -222,6 +222,11 @@ void AdpApplication::MenuCallback()
 				auto name = Device::GetDeviceName(i);
 				if (ImGui::RadioButton(name.data(), Device::DeviceSelected() == i)) {
 					failed = !Device::DeviceSelect(i);
+					if (!failed)
+					{
+						mySensitivityTab.OnDeviceChanged();
+					}
+
 				}
 			}
 		}
