@@ -20,17 +20,19 @@ static const char* ActivationMsg =
 static const char* ReleaseMsg =
     "Right click to adjust release threshold.";
 
-
-
-static bool EDITING_RELEASE = false;
 static constexpr int SENSOR_INDEX_NONE = -1;
-static int SENSOR_VALUE_TYPE = 0;
 static float GLOBAL_RELEASE_THRESHOLD = 0.0;
+static bool INITIALIZED = false;
 static ReleaseMode RELEASE_MODE;
 
 SensitivityTab::SensitivityTab()
     : myAdjustingSensorIndex(SENSOR_INDEX_NONE)
 {
+}
+
+void SensitivityTab::OnDeviceChanged()
+{
+    INITIALIZED = false;
 }
 
 void SensitivityTab::RenderSensor(int sensorIndex)
@@ -39,27 +41,73 @@ void SensitivityTab::RenderSensor(int sensorIndex)
     auto ws = ImGui::GetWindowSize();
     auto wdl = ImGui::GetWindowDrawList();
 
-    
     auto sensor = Device::Sensor(sensorIndex);
-    auto pressed = sensor ? sensor->pressed : false;
+    if (!sensor)
+        return;
 
-    auto threshold = sensor ? sensor->threshold : 0.0;
-    auto releaseThreshold = sensor ? sensor->releaseThreshold : 0.0;
+    auto pressed = sensor->pressed;
+    auto threshold = sensor->threshold;
+    auto releaseThreshold = sensor->releaseThreshold;
+
+    ImGui::InvisibleButton(fmt::format("##GraphSensor{}", sensorIndex).data(), ws);
+
+    // While mouse clicked
+    if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left) || ImGui::IsItemClicked(ImGuiMouseButton_Right))
+    {
+        myAdjustingSensorIndex = sensorIndex;
+        myAdjustingSensorThreshold = threshold;
+        myAdjustingSensorReleaseThreshold = releaseThreshold;
+    }
+
+    // During left mouse drag
+    if (myAdjustingSensorIndex == sensorIndex && ImGui::IsMouseDown(ImGuiMouseButton_Left))
+    {
+        auto currentMouseY = ImGui::GetIO().MousePos.y;
+        double t = (wp.y + ws.y - currentMouseY) / ws.y;
+        myAdjustingSensorThreshold = clamp(t, 0.0, 1.0);
+
+        // update visual threshold during adjustment
+        threshold = myAdjustingSensorThreshold;
+    }
+
+    // Only allow adjusting release threshold if in individual release mode.
+    if (myAdjustingSensorIndex == sensorIndex && ImGui::IsMouseDown(ImGuiMouseButton_Right) && RELEASE_MODE == RELEASE_INDIVIDUAL)
+    {
+        // assume this box is 100px tall, and starts on (0,10)
+        // (0,10) ┌─────┐
+        // (0,30) ├─────┤ <- threshold line (0.8 of total box height for example)
+        //        |     |
+        // (0,70) ├─────┤ <- release threshold (0.4 of total box height for example)
+        //        |     |
+        //        |     |
+        // (0,110)└─────┘
+        auto currentMouseY = ImGui::GetIO().MousePos.y;
+
+        // current mouse y is where we want to set our release threshold
+        // 1 - ((70 - 10) / (100)) = 1 - 0.6 = 0.4
+        double currentMousePercent = 1.0 - ((currentMouseY - wp.y) / ws.y);
+        myAdjustingSensorReleaseThreshold = clamp(currentMousePercent, 0.0, myAdjustingSensorThreshold);
+
+        // update visual release threshold during adjustment
+        releaseThreshold = myAdjustingSensorReleaseThreshold;
+    }
+
+    // LEFT RELEASE
+    if (myAdjustingSensorIndex == sensorIndex &&
+        (ImGui::IsMouseReleased(ImGuiMouseButton_Left) ||
+         ImGui::IsMouseReleased(ImGuiMouseButton_Right)))
+    {
+        Device::SetThreshold(
+            sensorIndex,
+            myAdjustingSensorThreshold,
+            myAdjustingSensorReleaseThreshold);
+        myAdjustingSensorIndex = SENSOR_INDEX_NONE;
+    }
 
     if (myAdjustingSensorIndex == sensorIndex)
     {
-        if (EDITING_RELEASE)
-        {
-            releaseThreshold = myAdjustingSensorThreshold;
-        }
-        else
-        {
-            threshold = myAdjustingSensorThreshold;
-            releaseThreshold = threshold - myAdjustingSensorReleaseOffset;
-            if(releaseThreshold < 0.0) {
-                releaseThreshold = 0.0;
-            }
-        }
+        threshold = myAdjustingSensorThreshold;
+        releaseThreshold = myAdjustingSensorReleaseThreshold;
     }
 
     if(RELEASE_MODE == RELEASE_NONE) {
@@ -69,14 +117,8 @@ void SensitivityTab::RenderSensor(int sensorIndex)
         releaseThreshold = threshold * GLOBAL_RELEASE_THRESHOLD;
     }
 
-    auto fillH = sensor ? float(sensor->value) * ws.y : 0.f;
+    auto fillH = float(sensor->value) * ws.y;
     float thresholdY = float(1 - threshold) * ws.y;
-
-    
-    ImGui::BeginChild(fmt::format("Sensor{}", sensorIndex).data(), { ws.x, ws.y }, false, ImGuiWindowFlags_NoScrollbar);
-    ImGui::EndChild();
-
-    bool sensorHighlighted = ImGui::IsItemHovered();
 
     // Full bar.
     wdl->AddRectFilled(
@@ -111,73 +153,10 @@ void SensitivityTab::RenderSensor(int sensorIndex)
         IM_COL32_WHITE);
 
     // Small text block at the top displaying sensitivity threshold.
-    auto thresholdStr = fmt::format("{}%%", (int)std::lround(threshold * 100.0));
+    auto thresholdStr = fmt::format("{}%", (int)std::lround(threshold * 100.0));
     auto ts = ImGui::CalcTextSize(thresholdStr.data());
     ImGui::SetCursorPos({ (ws.x - ts.x) / 2, 10 });
     ImGui::TextUnformatted(thresholdStr.data());
-
-    // Start/finish sensor threshold adjusting based on LMB click/release.
-    if (myAdjustingSensorIndex == SENSOR_INDEX_NONE)
-    {
-        if (sensorHighlighted && ImGui::IsMouseClicked(ImGuiPopupFlags_MouseButtonLeft) && ImGui::IsMousePosValid())
-        {
-            auto pos = ImGui::GetMousePos();
-            bool inBox = pos.x >= wp.x && pos.x < wp.x + ws.x &&
-                pos.y >= wp.y && pos.y < wp.y + ws.y;
-
-            if (inBox)
-            {
-                EDITING_RELEASE = false;
-                myAdjustingSensorIndex = sensorIndex;
-                myAdjustingSensorThreshold = 0.0;
-                myAdjustingSensorReleaseOffset = threshold - releaseThreshold;
-
-                ImGui::CaptureMouseFromApp(true);
-            }
-        }
-
-        if (sensorHighlighted && ImGui::IsMouseClicked(ImGuiPopupFlags_MouseButtonRight) && ImGui::IsMousePosValid() && RELEASE_MODE == RELEASE_INDIVIDUAL)
-        {
-            auto pos = ImGui::GetMousePos();
-            bool inBox = pos.x >= wp.x && pos.x < wp.x + ws.x &&
-                pos.y >= wp.y && pos.y < wp.y + ws.y;
-
-            if (inBox)
-            {
-                EDITING_RELEASE = true;
-                myAdjustingSensorIndex = sensorIndex;
-                myAdjustingSensorThreshold = 0.0;
-                ImGui::CaptureMouseFromApp(true);
-            }
-        }
-    }
-    else {
-        if (myAdjustingSensorIndex == sensorIndex)
-        {
-            if(EDITING_RELEASE) {
-                if (!ImGui::IsMouseDown(ImGuiPopupFlags_MouseButtonRight))
-                {
-                    Device::SetThreshold(myAdjustingSensorIndex, threshold, myAdjustingSensorThreshold);
-                    myAdjustingSensorIndex = SENSOR_INDEX_NONE;
-                }
-            } else {
-                if (!ImGui::IsMouseDown(ImGuiPopupFlags_MouseButtonLeft))
-                {
-                    Device::SetThreshold(myAdjustingSensorIndex, myAdjustingSensorThreshold, myAdjustingSensorThreshold);
-                    // Device::SetThreshold(myAdjustingSensorIndex, myAdjustingSensorThreshold, releaseThreshold);
-                    myAdjustingSensorIndex = SENSOR_INDEX_NONE;
-                }
-            }
-        }
-    }
-
-    // If sensor threshold adjusting is active, update threshold based on mouse position.
-    if (myAdjustingSensorIndex != SENSOR_INDEX_NONE)
-    {
-        double value = double(ImGui::GetMousePos().y) - (wp.y);
-        double range = max(1.0, double(ws.y));
-        myAdjustingSensorThreshold = clamp(1.0 - (value / range), 0.0, 1.0);
-    }
 }
 
 void SensitivityTab::Render()
@@ -189,7 +168,13 @@ void SensitivityTab::Render()
         return;
     }
 
-    RELEASE_MODE = pad->releaseMode;
+    // On first startup, pull the mode and threshold from the device
+    if (!INITIALIZED)
+    {
+        GLOBAL_RELEASE_THRESHOLD = pad->releaseThreshold;
+        RELEASE_MODE = pad->releaseMode;
+        INITIALIZED = true;
+    }
 
     auto ws = ImGui::GetWindowSize();
 
@@ -244,7 +229,8 @@ void SensitivityTab::Render()
 
     if(ImGui::RadioButton("None", RELEASE_MODE == RELEASE_NONE)) {
         Device::SetReleaseMode(ReleaseMode::RELEASE_NONE);
-        
+        RELEASE_MODE = RELEASE_NONE;
+
         for (int i = 0; i < pad->numSensors; ++i)
         {
             auto sensor = Device::Sensor(i);
@@ -257,23 +243,21 @@ void SensitivityTab::Render()
     ImGui::SameLine();
     if(ImGui::RadioButton("Global", RELEASE_MODE == RELEASE_GLOBAL)) {
         Device::SetReleaseMode(RELEASE_GLOBAL);
-
-        for (int i = 0; i < pad->numSensors; ++i)
-        {
-            auto sensor = Device::Sensor(i);
-            if(sensor) {
-                Device::SetThreshold(i, sensor->threshold, sensor->threshold * GLOBAL_RELEASE_THRESHOLD);
-            }
-        }
+        RELEASE_MODE = RELEASE_GLOBAL;
+        Device::SetReleaseThreshold(GLOBAL_RELEASE_THRESHOLD);
     }
-    
+
     ImGui::SameLine();
     if(ImGui::RadioButton("Individial", RELEASE_MODE == RELEASE_INDIVIDUAL)) {
         Device::SetReleaseMode(RELEASE_INDIVIDUAL);
+        RELEASE_MODE = RELEASE_INDIVIDUAL;
     }
 
     if(RELEASE_MODE == RELEASE_GLOBAL) {
         ImGui::SliderFloat("##", &GLOBAL_RELEASE_THRESHOLD, 0.0, 1.0, "%.2f");
+
+        if (ImGui::IsItemDeactivatedAfterEdit())
+            Device::SetReleaseThreshold(GLOBAL_RELEASE_THRESHOLD);
     }
 }
 
