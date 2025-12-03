@@ -16,6 +16,7 @@ private:
     int myAdjustingSensorIndex;
     double myAdjustingSensorThreshold;
     double myAdjustingSensorReleaseThreshold;
+    double myAdjustingRelativeReleaseThreshold;
 };
 
 }; // namespace adp.

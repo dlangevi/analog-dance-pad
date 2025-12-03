@@ -58,6 +58,14 @@ void SensitivityTab::RenderSensor(int sensorIndex)
         myAdjustingSensorIndex = sensorIndex;
         myAdjustingSensorThreshold = threshold;
         myAdjustingSensorReleaseThreshold = releaseThreshold;
+        myAdjustingRelativeReleaseThreshold = releaseThreshold / threshold;
+    }
+
+    if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(ImGuiMouseButton_Left) || ImGui::IsItemClicked(ImGuiMouseButton_Right))
+    {
+        myAdjustingSensorIndex = sensorIndex;
+        myAdjustingSensorThreshold = threshold;
+        myAdjustingSensorReleaseThreshold = releaseThreshold;
     }
 
     // During left mouse drag
@@ -69,6 +77,7 @@ void SensitivityTab::RenderSensor(int sensorIndex)
 
         // update visual threshold during adjustment
         threshold = myAdjustingSensorThreshold;
+        releaseThreshold = myAdjustingSensorThreshold * myAdjustingRelativeReleaseThreshold;
     }
 
     // Only allow adjusting release threshold if in individual release mode.
@@ -94,21 +103,25 @@ void SensitivityTab::RenderSensor(int sensorIndex)
     }
 
     // LEFT RELEASE
-    if (myAdjustingSensorIndex == sensorIndex &&
-        (ImGui::IsMouseReleased(ImGuiMouseButton_Left) ||
-         ImGui::IsMouseReleased(ImGuiMouseButton_Right)))
+    if (myAdjustingSensorIndex == sensorIndex && ImGui::IsMouseReleased(ImGuiMouseButton_Left))
+    {
+        // Set the threshold and preserve the relative scaling of the release
+        // threshold.
+        Device::SetThreshold(
+            sensorIndex,
+            myAdjustingSensorThreshold,
+            myAdjustingSensorThreshold * myAdjustingRelativeReleaseThreshold);
+        myAdjustingSensorIndex = SENSOR_INDEX_NONE;
+    }
+
+    // RIGHT RELEASE
+    if (myAdjustingSensorIndex == sensorIndex && ImGui::IsMouseReleased(ImGuiMouseButton_Right))
     {
         Device::SetThreshold(
             sensorIndex,
             myAdjustingSensorThreshold,
-            myAdjustingSensorReleaseThreshold);
+            clamp(myAdjustingSensorReleaseThreshold, 0.0, myAdjustingSensorThreshold * 0.99));
         myAdjustingSensorIndex = SENSOR_INDEX_NONE;
-    }
-
-    if (myAdjustingSensorIndex == sensorIndex)
-    {
-        threshold = myAdjustingSensorThreshold;
-        releaseThreshold = myAdjustingSensorReleaseThreshold;
     }
 
     if(RELEASE_MODE == RELEASE_NONE) {
@@ -237,7 +250,7 @@ void SensitivityTab::Render()
         {
             auto sensor = Device::Sensor(i);
             if(sensor) {
-                Device::SetThreshold(i, sensor->threshold, sensor->threshold);
+                Device::SetThreshold(i, sensor->threshold, sensor->threshold * 0.99);
             }
         }
     }
