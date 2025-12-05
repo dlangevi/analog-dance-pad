@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "configurePresets": [
+    {
+      "name": "default",
+      "inherits": "vcpkg",
+      "environment": {
+        "VCPKG_ROOT": "/nix/store/y1wc15gnazyyv3vb5rdb4nvf42ba53kl-vcpkg-2025.02.14/share/vcpkg"
+      }
+    }
+  ]
+}
