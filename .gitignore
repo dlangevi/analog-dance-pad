@@ -3,7 +3,6 @@ node_modules
 .vscode
 
 adp-tool/.cache/
-adp-tool/lib/
 adp-tool/lib/fmt/
 adp-tool/lib/glfw/
 adp-tool/lib/imgui/
