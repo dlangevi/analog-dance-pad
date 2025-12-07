@@ -200,14 +200,17 @@ static void PrintLedMappingReport(const LedMappingReport& r)
 
 static void PrintSensorReport(const SensorReport& r)
 {
-	Log::Write("sensor config[");
-	Log::Writef("  mappingIndex: %i", r.index);
-	Log::Writef("  threshold: %i", ReadU16LE(r.threshold));
-	Log::Writef("  releaseThreshold: %i", ReadU16LE(r.releaseThreshold));
-	Log::Writef("  buttonMapping: %i", r.buttonMapping);
-	Log::Writef("  resistorValue: %i", r.resistorValue);
-	Log::Writef("  flags: %s", fmt::format("{:b}", ReadU16LE(r.flags)).c_str());
-	Log::Write("]");
+	if (r.buttonMapping == -1) {
+		return;
+	}
+	Log::Write(LogLevel::ERROR, "sensor config[");
+	Log::Writef(LogLevel::ERROR, "  mappingIndex: %i", r.index);
+	Log::Writef(LogLevel::ERROR, "  threshold: %i", ReadU16LE(r.threshold));
+	Log::Writef(LogLevel::ERROR, "  releaseThreshold: %i", ReadU16LE(r.releaseThreshold));
+	Log::Writef(LogLevel::ERROR, "  buttonMapping: %i", r.buttonMapping);
+	// Log::Writef(LogLevel::ERROR, "  resistorValue: %i", r.resistorValue);
+	// Log::Writef(LogLevel::ERROR, "  flags: %s", fmt::format("{:b}", ReadU16LE(r.flags)).c_str());
+	Log::Write(LogLevel::ERROR, "]");
 }
 
 // ====================================================================================================================
@@ -455,6 +458,7 @@ public:
 
 	bool SetThreshold(int sensorIndex, double threshold, double releaseThreshold)
 	{
+		Log::Writef(LogLevel::ERROR, "SetThreshold :: sensorIndex=%i threshold=%.2f releaseThreshold=%.2f", sensorIndex, threshold, releaseThreshold);
 		mySensors[sensorIndex].threshold = threshold;
 		mySensors[sensorIndex].releaseThreshold = releaseThreshold;
 
@@ -469,6 +473,7 @@ public:
 
 	bool SetReleaseThreshold(double threshold)
 	{
+		Log::Writef(LogLevel::ERROR, "SetReleaseThreshold :: threshold=%.2f", threshold);
 		myPad.releaseThreshold = clamp(threshold, 0.01, 1.00);
 
 		// From v1.3 we have the SensorReport. Before that it's the PadConfiguration report
@@ -1098,12 +1103,12 @@ public:
 
 		std::string boardType = device->State().boardType.ToString();
 
-		Log::Write("ConnectionManager :: new device connected [");
-		Log::Writef("  Name: %s", device->State().name.c_str());
-		Log::Writef("  Board: %s: %s", padIdentificationV2.boardType, boardType.c_str());
-		Log::Writef("  Firmware version: v%u.%u", ReadU16LE(padIdentificationV2.firmwareMajor), ReadU16LE(padIdentificationV2.firmwareMinor));
-		Log::Writef("  Feautre flags: %s", fmt::format("{:b}", ReadU16LE(padIdentificationV2.features)).c_str());
-		Log::Writef("  Path: %s", devicePath.c_str());
+		Log::Write(LogLevel::ERROR, "ConnectionManager :: new device connected [");
+		Log::Writef(LogLevel::ERROR, "  Name: %s", device->State().name.c_str());
+		Log::Writef(LogLevel::ERROR, "  Board: %s: %s", padIdentificationV2.boardType, boardType.c_str());
+		Log::Writef(LogLevel::ERROR, "  Firmware version: v%u.%u", ReadU16LE(padIdentificationV2.firmwareMajor), ReadU16LE(padIdentificationV2.firmwareMinor));
+		Log::Writef(LogLevel::ERROR, "  Feautre flags: %s", fmt::format("{:b}", ReadU16LE(padIdentificationV2.features)).c_str());
+		Log::Writef(LogLevel::ERROR, "  Path: %s", devicePath.c_str());
 		
 		/*
 		if(deviceInfo != NULL) {
