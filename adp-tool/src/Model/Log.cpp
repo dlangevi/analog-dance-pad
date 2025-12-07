@@ -14,16 +14,24 @@ using namespace std;
 namespace adp {
 
 static vector<string>* messages = nullptr;
-static bool enabled = true;
+static LogLevel LOGLEVEL = LogLevel::ERROR;
+
+void ToStdOutput(LogLevel level, const char* message)
+{
+	if (level < LOGLEVEL)
+		return;
+
+	cout << message << endl;
+}
 
 void Log::Init()
 {
 	messages = new vector<string>();
 }
 
-void Log::SetEnabled(bool enabled)
+void Log::SetLogLevel(LogLevel level)
 {
-	enabled = enabled;
+	LOGLEVEL = level;
 }
 
 void Log::Shutdown()
@@ -34,18 +42,26 @@ void Log::Shutdown()
 
 void Log::Write(const char* message)
 {
-	if (!enabled)
-		return;
+	Write(LogLevel::DEBUG, message);
+}
 
+void Log::Write(LogLevel level ,const char* message)
+{
 	messages->emplace_back(message);
-	cout << message << endl;
+
+	ToStdOutput(level, message);
 }
 
 void Log::Writef(const char* format, ...)
 {
-	if (!enabled)
-		return;
+	va_list args;
+	va_start(args, format);
+	Log::Writef(LogLevel::DEBUG, format, args);
+	va_end (args);
+}
 
+void Log::Writef(LogLevel level, const char* format, ...)
+{
 	char buffer[10000];
 	va_list args;
 	va_start(args, format);
@@ -59,6 +75,10 @@ void Log::Writef(const char* format, ...)
 	messages->emplace_back((const char*)buffer, len);
 	
 	va_end (args);
+
+
+	if (level < LOGLEVEL)
+		return;
 
 	for(int i=0 ; i<len ; ++i)
 	{

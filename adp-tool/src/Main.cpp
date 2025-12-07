@@ -93,7 +93,7 @@ void AdpApplication::LoadProfile()
 
 	if (!fileStream.is_open())
 	{
-		Log::Writef("Could not read profile: %s", outPath.data());
+		Log::Writef(LogLevel::ERROR, "Could not read profile: %s", outPath.data());
 		return;
 	}
 
@@ -108,7 +108,7 @@ void AdpApplication::LoadProfile()
 		Device::LoadProfile(j, DGP_ALL);
 	}
 	catch (exception e) {
-		Log::Writef("Could not read profile: %s", e.what());
+		Log::Writef(LogLevel::ERROR, "Could not read profile: %s", e.what());
 	}
 }
 
@@ -134,7 +134,7 @@ void AdpApplication::SaveProfile()
 	ofstream output_stream(outPath);
 	if (!output_stream)
 	{
-		Log::Writef("Could not save profile: %s", outPath.data());
+		Log::Writef(LogLevel::ERROR, "Could not save profile: %s", outPath.data());
 		return;
 	}
 
@@ -149,7 +149,7 @@ void AdpApplication::SaveProfile()
 		output_stream.close();
 	}
 	catch (exception e) {
-		Log::Writef("Could not save profile: %s", e.what());
+		Log::Writef(LogLevel::ERROR, "Could not save profile: %s", e.what());
 	}
 }
 #endif// __EMSCRIPTEN__
@@ -377,11 +377,30 @@ int Main(int argc, char** argv)
 {
 	Log::Init();
 
+	// GET the LOGLEVEL from environment variable
+	const char* logLevelEnv = std::getenv("LOGLEVEL");
+	if (logLevelEnv) {
+		std::string levelStr(logLevelEnv);
+		if (levelStr == "TRACE") {
+			Log::SetLogLevel(LogLevel::TRACE);
+		} else if (levelStr == "DEBUG") {
+			Log::SetLogLevel(LogLevel::DEBUG);
+		} else if (levelStr == "INFO") {
+			Log::SetLogLevel(LogLevel::INFO);
+		} else if (levelStr == "WARNING") {
+			Log::SetLogLevel(LogLevel::WARNING);
+		} else if (levelStr == "ERROR") {
+			Log::SetLogLevel(LogLevel::ERROR);
+		} else if (levelStr == "FATAL") {
+			Log::SetLogLevel(LogLevel::FATAL);
+		}
+	}
+
 	auto versionString = fmt::format("{} {}.{}", TOOL_NAME, ADP_VERSION_MAJOR, ADP_VERSION_MINOR);
 	auto now = std::time(0);
 	std::string datetime = std::ctime(&now);
-	Log::Writef("Application started: %s", versionString.data());
-	Log::Writef("Starting at: %s", datetime.data());
+	Log::Writef(LogLevel::INFO, "Application started: %s", versionString.data());
+	Log::Writef(LogLevel::INFO ,"Starting at: %s", datetime.data());
 
 	Device::Init();
 
