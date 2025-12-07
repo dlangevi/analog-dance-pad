@@ -2,6 +2,9 @@ cmake_minimum_required (VERSION 3.6)
 
 set(CMAKE_CXX_STANDARD 23)
 
+# Always generate compile_commands.json
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL "Always generate compile_commands.json" FORCE)
+
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
 project(adp-tool VERSION 2.0)
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/src/Adp.h.in" "${CMAKE_CURRENT_SOURCE_DIR}/src/Adp.h")

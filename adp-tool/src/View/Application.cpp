@@ -168,6 +168,11 @@ void Application::Shutdown()
 			m_WindowHandle,
 			&adp::UserConfig::WindowWidth,
 			&adp::UserConfig::WindowHeight);
+
+	// TODO if glfw crashes, the window sizes will be random values.
+	// Ideally we just detect this case and skip the save
+	adp::UserConfig::WindowWidth = std::clamp(adp::UserConfig::WindowWidth, 800, 3840);
+	adp::UserConfig::WindowHeight= std::clamp(adp::UserConfig::WindowHeight, 600, 2160);
 	adp::UserConfig::SaveToDisk();
 
 	ImGui_ImplOpenGL3_Shutdown();

@@ -4,6 +4,15 @@
 
 namespace adp {
 
+enum LogLevel {
+    TRACE,
+    DEBUG,
+    INFO,
+    WARNING,
+    ERROR,
+    FATAL
+};
+
 class Log
 {
 public:
@@ -11,15 +20,18 @@ public:
 
 	static void Shutdown();
 
+	// If LogLevel is not specified, LogLevel::DEBUG is used
+	static void Write(LogLevel level, const char* message);
 	static void Write(const char* message);
 
+	static void Writef(LogLevel level, const char* format, ...);
 	static void Writef(const char* format, ...);
 
 	static int NumMessages();
 
 	static const std::string& Message(int index);
 
-	static void SetEnabled(bool enabled);
+	static void SetLogLevel(LogLevel level);
 };
 
 }; // namespace adp.
