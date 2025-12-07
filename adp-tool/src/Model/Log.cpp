@@ -52,19 +52,9 @@ void Log::Write(LogLevel level ,const char* message)
 	ToStdOutput(level, message);
 }
 
-void Log::Writef(const char* format, ...)
-{
-	va_list args;
-	va_start(args, format);
-	Log::Writef(LogLevel::DEBUG, format, args);
-	va_end (args);
-}
-
-void Log::Writef(LogLevel level, const char* format, ...)
+void Writef_va(LogLevel level, const char* format, va_list args)
 {
 	char buffer[10000];
-	va_list args;
-	va_start(args, format);
 
 	#if defined(_MSC_VER)
 	size_t len = vsprintf_s(buffer, 10000, format, args);
@@ -74,9 +64,6 @@ void Log::Writef(LogLevel level, const char* format, ...)
 
 	messages->emplace_back((const char*)buffer, len);
 	
-	va_end (args);
-
-
 	if (level < LOGLEVEL)
 		return;
 
@@ -86,6 +73,22 @@ void Log::Writef(LogLevel level, const char* format, ...)
 	}
 
 	cout << endl;
+}
+
+void Log::Writef(const char* format, ...)
+{
+	va_list args;
+	va_start(args, format);
+	Writef_va(LogLevel::DEBUG, format, args); // Pass va_list directly
+	va_end(args);
+}
+
+void Log::Writef(LogLevel level, const char* format, ...)
+{
+	va_list args;
+	va_start(args, format);
+	Writef_va(level, format, args); // Pass va_list directly
+	va_end(args);
 }
 
 int Log::NumMessages()
