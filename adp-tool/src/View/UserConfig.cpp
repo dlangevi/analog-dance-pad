@@ -12,7 +12,7 @@ namespace adp {
 
 bool UserConfig::Init() {
 #ifdef __EMSCRIPTEN__
-  return false;
+  return true; // no filesystem in WASM, static defaults are used
 #else
   configDir = std::filesystem::path(sago::getConfigHome()) / "adp_tool";
 
@@ -45,7 +45,7 @@ void WriteColor(nlohmann::json& j, const std::string& key, const RgbColorf& colo
 
 bool UserConfig::LoadFromDisk() {
 #ifdef __EMSCRIPTEN__
-  return false;
+  return true; // no filesystem in WASM, static defaults are used
 #else
   if (!std::filesystem::exists(configPath)) {
     return false;
