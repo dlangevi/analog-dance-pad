@@ -2,12 +2,18 @@
 
 #include <filesystem>
 #include <fstream>
+
+#ifndef __EMSCRIPTEN__
 #include <sago/platform_folders.h>
+#endif
 #include <nlohmann/json.hpp>
 
 namespace adp {
 
 bool UserConfig::Init() {
+#ifdef __EMSCRIPTEN__
+  return false;
+#else
   configDir = std::filesystem::path(sago::getConfigHome()) / "adp_tool";
 
   if (!std::filesystem::exists(configDir)) {
@@ -16,6 +22,7 @@ bool UserConfig::Init() {
 
   configPath = configDir /  "config.json";
   return UserConfig::LoadFromDisk();
+#endif
 }
 
 RgbColorf ReadColor(const nlohmann::json& j, const std::string& key, const RgbColorf& defaultColor) {
@@ -37,7 +44,9 @@ void WriteColor(nlohmann::json& j, const std::string& key, const RgbColorf& colo
 
 
 bool UserConfig::LoadFromDisk() {
-
+#ifdef __EMSCRIPTEN__
+  return false;
+#else
   if (!std::filesystem::exists(configPath)) {
     return false;
   }
@@ -58,9 +67,13 @@ bool UserConfig::LoadFromDisk() {
   UserConfig::WindowHeight = j.value("WindowHeight", UserConfig::WindowHeight);
 
   return true;
+#endif
 }
 
 bool UserConfig::SaveToDisk() {
+#ifdef __EMSCRIPTEN__
+  return false;
+#else
   nlohmann::json j;
 
   WriteColor(j, "SensorOn", UserConfig::SensorOn);
@@ -78,6 +91,7 @@ bool UserConfig::SaveToDisk() {
 
   outputStream << j.dump(4);
   return true;
+#endif
 }
 
 std::filesystem::path UserConfig::configDir = "";

@@ -29,7 +29,9 @@ add_subdirectory(lib)
 
 find_package(fmt REQUIRED)
 find_package(imgui REQUIRED)
-find_package(platform_folders REQUIRED)
+if(NOT EMSCRIPTEN)
+	find_package(platform_folders REQUIRED)
+endif()
 find_package(nlohmann_json REQUIRED)
 find_package(Stb REQUIRED)
 find_package(argparse REQUIRED)
@@ -110,8 +112,11 @@ set(GUI_SOURCES
 set(GUI_LIBS
 	${GLOBAL_LIBS}
 	imgui::imgui
-	sago::platform_folders
 )
+
+if(NOT EMSCRIPTEN)
+	list(APPEND GUI_LIBS sago::platform_folders)
+endif()
 
 if(NOT EMSCRIPTEN)
 	list(APPEND GUI_LIBS unofficial::nativefiledialog::nfd)
