@@ -30,5 +30,20 @@ pkgs.mkShell {
     export VCPKG_ROOT=${pkgs.vcpkg}/share/vcpkg
     # export VCPKG_FORCE_SYSTEM_BINARIES=1
     export PKG_CONFIG=${pkgs.pkg-config-unwrapped}/bin/pkg-config
+
+    cat > CMakeUserPresets.json << 'PRESET_EOF'
+{
+  "version": 2,
+  "configurePresets": [
+    {
+      "name": "default",
+      "inherits": "vcpkg",
+      "environment": {
+        "VCPKG_ROOT": "${pkgs.vcpkg}/share/vcpkg"
+      }
+    }
+  ]
+}
+PRESET_EOF
   '';
 }
